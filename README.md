@@ -1,41 +1,38 @@
-# Sistema VB · Demo Di Parma Pizzería
+# Sistema RAVE · demo para Di Parma Pizzería
 
-Demo funcional e interactiva del Sistema VB 26 adaptada a **Di Parma Pizzería de masa madre** (Salta): salón y barra, carta por QR/NFC, circuito completo de comanda con tiempos de entrega, asistente de voz para el personal, repartos con cadetes propios y PedidosYa, control de fermentación, fichas técnicas, stock con trazabilidad, Factura C ARCA, club de socios y turnos. Todo corre en el navegador desde un único archivo `index.html`, sin backend ni instalación. **Todos los datos son ficticios.**
+Demo de evaluación de **Sistema RAVE V26.25b** (VINCULAR BUSINESS) adaptada a **Di Parma Pizzería de masa madre** (Salta).
+Un solo archivo (`index.html`): carta pública adelante y panel de gestión en `#acceso`.
+
+- Carta pública (retiro y delivery): `/`
+- Carta de una mesa, la que abre el QR o el tag NFC: `/?mesa=I4` (mesas `I1`–`I10`, exterior `E1`–`E3`, barra `B1`–`B5`)
+- Acceso del equipo: `/#acceso`
+- Usuarios de prueba: ADMIN 1234 · Supervisor 1111 · Caja 0000 · Mozo Martín 2222 · Moza Sofía 3333 · Barra Joaquín 4444 · Cocina Franco 5555 · Cocina Lucía 6666
 
 **Demo en línea:** https://raveholding.github.io/DIPARMAPizzeriaDemo/
-**Carta de una mesa (lo que abre el QR/NFC):** https://raveholding.github.io/DIPARMAPizzeriaDemo/?mesa=I4
 
-## Cómo usarla
+**Es una demo.** Carta, precios, costos, stock, lotes de masa, socios, cupones, personal y ventas del día son de ejemplo.
+Los datos se guardan sólo en el navegador de quien la prueba y se sincronizan en vivo entre pestañas del mismo equipo (por ejemplo, la carta de una mesa en una pestaña y el panel del personal en otra). Se renuevan solos cada 14 horas o desde *Configuración → Restablecer datos de demostración*.
+**Facturación electrónica (ARCA):** al cobrar se emite una Factura C **SIMULADA** (CAE inventado, rotulado «SIN VALIDEZ FISCAL»), con contingencia si ARCA no responde y nota de crédito. En el sistema del cliente el CAE lo pide el servidor a ARCA (WSAA + WSFE) con el certificado del propio comercio.
+**PedidosYa** es una conexión simulada (pedidos de ejemplo que se sincronizan con caja y cocina). Grabar tags NFC requiere Chrome en Android. El asistente de voz usa el dictado del navegador (Chrome o Edge).
 
-1. Abrí `index.html` en Chrome o Edge actualizados (el dictado por voz necesita uno de esos dos navegadores).
-2. Arriba a la derecha elegí el perfil: **Administración, Mozo, Caja, Cocina o Cliente (QR)**. Cada perfil ve sólo sus pantallas y acciones.
-3. La demo arranca con un servicio en curso: mesas ocupadas, un pedido QR esperando al mozo (mesa 4), una comanda en caja (mesa 3), otra en cocina sin tiempo (mesa 2), pizzas en el horno y un delivery listo sin cadete.
-4. Para volver al estado inicial: **Ajustes → Restablecer datos de demostración**.
+## Circuito de comanda
 
-Los datos se guardan en el navegador y **se sincronizan en vivo entre pestañas**: abrí la carta de una mesa en otra pestaña (`?mesa=I5`) y el panel del personal en esta.
+Mesa (QR/NFC) → validación del mozo → confirmación en caja → cocina acepta e ingresa el tiempo de entrega → listo → servido o despachado. Cada cambio se ve en tiempo real en el panel de cada perfil y en la carta del cliente (con cuenta regresiva). Los pedidos de la carta pública (retiro o delivery) entran directo a caja; los de PedidosYa, con la confirmación automática activa, directo a cocina.
 
-## Recorrido sugerido (5 minutos)
+## Recorrido sugerido
 
-1. **Dashboard → Ver el circuito completo en vivo**: recorre solo los 7 pasos Mesa → Mozo → Caja → Cocina → Tiempo → Listo.
-2. **Vista cliente** (Mesa 5, que ya está armando un pedido): agregá una pizza individual con huevo frito y una aclaración, y tocá *Enviar*.
-3. **Perfil Mozo**: validá el pedido. **Caja**: confirmalo. **Cocina**: tocá *15′*. En la carta del cliente aparece la cuenta regresiva.
-4. **Asistente de voz**: “Confirmar pedido mesa 4”, “Mesa 2 en preparación 18 minutos”, “Pedido 12 listo”, “Mesa 6, una salteña con huevo frito y dos copas de vino”.
-5. **Repartos y PedidosYa**: asigná un cadete al delivery listo y simulá un pedido entrante de PedidosYa (entra directo a cocina).
-6. **Caja → Cuentas abiertas**: cobrá la Mesa 7 con un socio y el cupón `BIENVENIDA10`. Se emite la Factura C con CAE y QR de ARCA.
-7. Revisá **Fermentación** (bollos descontados por lote), **Stock** (consumo por ficha técnica, lote y pedido) y **Fichas técnicas** (costo y food cost por plato).
+1. **Resumen → Ver el circuito completo en vivo**: recorre solo los 7 pasos de una comanda.
+2. **Menú público (QR/NFC)**, Mesa 5 (ya está armando un pedido): agregá una pizza individual con adicional y aclaración, y enviala.
+3. Con los perfiles **Mozo → Caja → Cocina** validá, confirmá y asigná un tiempo (15′). El cliente ve la cuenta regresiva.
+4. **Asistente** (solo personal): “Confirmar pedido mesa 4”, “Mesa 2 en preparación 18 minutos”, “Pedido 12 listo”, “Mesa 6, una salteña con huevo frito y dos copas de vino”.
+5. **PedidosYa y repartos**: asigná un cadete al delivery listo y simulá un pedido entrante de PedidosYa.
+6. **Caja → Cuentas abiertas**: cobrá la Mesa 7 con un socio y el cupón `BIENVENIDA10`.
+7. Revisá **Fermentación**, **Inventario** y **Fichas técnicas**: los bollos de masa madre y los insumos se descuentan solos según la ficha de cada plato.
 
 ## Módulos
 
-- **Salón y barra**: 10 mesas interiores, 3 exteriores y 5 banquetas de barra, con estado en vivo (libre, cliente armando por QR, pedido sin validar, en cocina, listo, pidió la cuenta), llamados al mozo y QR/NFC imprimibles por mesa.
-- **Carta QR/NFC del cliente**: carta con tamaños, adicionales y aclaraciones; la precarga la ve el mozo en vivo; seguimiento del pedido con tiempo de entrega; llamar al mozo, pedir la cuenta y sumarse al club. Sin acceso al asistente de voz.
-- **Circuito de comanda**: Mesa/QR → validación del mozo → confirmación en caja → cocina acepta y asigna tiempo → listo → servido o despachado. Cada paso queda en el historial del pedido y en la auditoría.
-- **Asistente de voz (sólo personal)**: carga comandas habladas (cantidades, tamaño, adicionales y “sin…”), confirma pedidos según el perfil, asigna y cambia tiempos, marca listos y entregados, consulta estados y cancela. Respeta los permisos de cada rol.
-- **Logística**: cadetes propios con estado, entregas y efectivo a rendir; integración simulada con PedidosYa (sincronización automática y confirmación automática hacia cocina).
-- **Producción**: lotes de masa madre con fases (bloque, frío, listo, sobremadurado), temperaturas, refrescos de la madre, calculadora de amasado y descuento de bollos FEFO; fichas técnicas editables con escandallo, food cost y precio sugerido.
-- **Administración**: stock con lotes, vencimientos y movimientos por pedido; proveedores y pedido de faltantes por WhatsApp o correo; Factura C ARCA con contingencia y nota de crédito; Club Di Parma con puntos, niveles, canjes y cupones; personal con grilla de turnos, cobertura y fichadas.
+Resumen · Salón y barra (10 mesas, 3 exterior, 5 banquetas) · Mozo · Caja · Cocina (pantalla de comandas con tiempos) · PedidosYa y repartos (cadetes propios) · Asistente de voz · Fermentación (madre y lotes de bollos) · Fichas técnicas y escandallos · Inventario, trazabilidad y proveedores · Fidelización y cupones (Club Di Parma) · Facturación ARCA · Personal y fichaje (turnos y cobertura) · Menú público (QR/NFC) · Auditoría · Configuración.
 
-## Limitaciones conocidas
+Los textos legales son plantillas [VERIFICAR] con asesor; periféricos y NFC sin probar con equipos reales.
 
-Es un prototipo para validar flujos. Los datos viven sólo en el navegador; la sincronización en tiempo real funciona entre pestañas del mismo equipo (entre dispositivos requiere el servidor de la versión productiva). La facturación ARCA, el CAE, el QR fiscal, la integración con PedidosYa y la grabación de tags NFC son simulaciones o dependen del navegador. El dictado por voz usa el reconocimiento del navegador (Chrome/Edge).
-
-Sistema VB · desarrollado por Rave Holding.
+Desarrollado por **VINCULAR BUSINESS** · Único celular (387) 4484132 · vincularbusiness@gmail.com · *“Tu idea, en buenas manos.”*
