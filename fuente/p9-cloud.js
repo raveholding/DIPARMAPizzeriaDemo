@@ -1,0 +1,634 @@
+/* ================= NUBE (Supabase) · cliente =================
+   Este módulo conecta el sistema con la base de Vincular Business en Supabase. Es OPCIONAL: sin URL y clave publicable el sistema
+   funciona igual, sólo en este equipo (demo). Reglas:
+   · En el archivo sólo van la URL del proyecto y la clave PUBLICABLE (sb_publishable_…). Jamás una clave secreta.
+   · Cuenta = correo + contraseña de Supabase Auth. La contraseña además abre la llave de cifrado (AES-256-GCM) de los datos:
+     el servidor guarda la llave "envuelta" y no la puede abrir.
+   · Datos personales (clientes, DNI, PIN) viajan cifrados con esa llave. Productos, ventas y caja viajan en claro porque el
+     servidor suma el stock y valida reglas (por eso el stock se manda como movimientos, no como número).
+   · Sin internet se sigue vendiendo: todo queda en el equipo (cifrado) y se sube solo al volver la conexión. */
+const CLOUD=(()=>{const c=(typeof window!=='undefined'&&window.RAVE_CLOUD)||{};const ok=!!(c.url&&c.key&&/^https:\/\/[A-Za-z0-9.-]+(:\d+)?$/.test(String(c.url).replace(/\/$/,''))&&!/__/.test(c.url+c.key)&&!/service_role/i.test(c.key)&&!/^sb_secret_/.test(c.key));
+ return{on:ok,url:ok?String(c.url).replace(/\/$/,''):'',key:ok?c.key:'',slug:String(c.slug||'').toLowerCase()};})();
+const cl={ses:null,uid:'',email:'',rol:'',nombre:'',comercio:null,slug:'',dek:null,dekRaw:null,dev:'',snum:0,fp:{},base:{},outStock:[],cursor:null,rejects:[],
+ online:false,busy:false,lastOk:0,lastErr:'',pending:0,timer:null,adopted:false,clubPriv:null,pubSnap:null,team:[],cajaNo:0,ready:false,recoveryShown:false,loaded:false};
+const te=new TextEncoder(),td=new TextDecoder();
+const rnd=n=>crypto.getRandomValues(new Uint8Array(n));
+const b64=u=>{let s='';for(let i=0;i<u.length;i+=0x8000)s+=String.fromCharCode.apply(null,u.subarray(i,i+0x8000));return btoa(s);};
+const unb64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+const ALF='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+function genCode(n,group){let o='';const r=rnd(n);for(let i=0;i<n;i++){o+=ALF[r[i]%ALF.length];if(group&&(i+1)%group===0&&i<n-1)o+='-';}return o;}
+const normCode=s=>String(s||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+/* ---------- cifrado ---------- */
+async function kdfKey(pass,salt,iter){const k=await crypto.subtle.importKey('raw',te.encode(String(pass).normalize('NFC')),'PBKDF2',false,['deriveKey']);
+ return crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations:iter,hash:'SHA-256'},k,{name:'AES-GCM',length:256},false,['encrypt','decrypt']);}
+async function wrapDek(raw,pass){const salt=rnd(16),iv=rnd(12),it=200000;const k=await kdfKey(pass,salt,it);const ct=new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv},k,raw));
+ return{kdf:{alg:'PBKDF2-SHA256',iter:it,salt:b64(salt)},wrap:{iv:b64(iv),ct:b64(ct)}};}
+async function unwrapDek(rec,pass){const it=+rec.kdf.iter;if(!(it>=100000&&it<=2000000))throw new Error('llave inválida');const k=await kdfKey(pass,unb64(rec.kdf.salt),it);
+ return new Uint8Array(await crypto.subtle.decrypt({name:'AES-GCM',iv:unb64(rec.wrap.iv)},k,unb64(rec.wrap.ct)));}
+const dekKey=raw=>crypto.subtle.importKey('raw',raw,'AES-GCM',false,['encrypt','decrypt']);
+async function sealJ(obj,key,aad){const iv=rnd(12);const p={name:'AES-GCM',iv};if(aad)p.additionalData=te.encode(aad);return{iv:b64(iv),ct:b64(new Uint8Array(await crypto.subtle.encrypt(p,key,te.encode(JSON.stringify(obj)))))};}
+async function openJ(box,key,aad){const p={name:'AES-GCM',iv:unb64(box.iv)};if(aad)p.additionalData=te.encode(aad);return JSON.parse(td.decode(await crypto.subtle.decrypt(p,key,unb64(box.ct))));}
+/* hash rápido (no criptográfico) para saber si un registro cambió */
+function cyrb(str){let h1=0xdeadbeef,h2=0x41c6ce57;for(let i=0;i<str.length;i++){const c=str.charCodeAt(i);h1=Math.imul(h1^c,2654435761);h2=Math.imul(h2^c,1597334677);}
+ h1=Math.imul(h1^(h1>>>16),2246822507)^Math.imul(h2^(h2>>>13),3266489909);h2=Math.imul(h2^(h2>>>16),2246822507)^Math.imul(h1^(h1>>>13),3266489909);return(4294967296*(2097151&h2)+(h1>>>0)).toString(36);}
+function canon(o){if(o===null||typeof o!=='object')return JSON.stringify(o===undefined?null:o);if(Array.isArray(o))return'['+o.map(canon).join(',')+']';
+ return'{'+Object.keys(o).filter(k=>o[k]!==undefined).sort().map(k=>JSON.stringify(k)+':'+canon(o[k])).join(',')+'}';}
+/* ---------- almacenamiento local (IndexedDB, misma base que el sistema) ---------- */
+async function kvGet(k){try{const db=await idb();return await new Promise(res=>{const q=db.transaction('kv').objectStore('kv').get(k);q.onsuccess=()=>res(q.result);q.onerror=()=>res(null);});}catch(e){return null;}}
+async function kvPut(k,v){try{const db=await idb();await new Promise((res,rej)=>{const t=db.transaction('kv','readwrite');t.objectStore('kv').put(v,k);t.oncomplete=res;t.onerror=()=>rej(t.error);});return true;}catch(e){return false;}}
+async function kvDel(k){try{const db=await idb();db.transaction('kv','readwrite').objectStore('kv').delete(k);}catch(e){}}
+/* ---------- HTTP ---------- */
+class NetErr extends Error{constructor(m){super(m||'Sin conexión');this.net=true;}}
+class ApiErr extends Error{constructor(m,st,body){super(m);this.status=st;this.body=body;}}
+async function hreq(path,o={}){const h={apikey:CLOUD.key,'Content-Type':'application/json'};
+ if(o.auth!==false){const t=await accessToken();if(!t)throw new ApiErr('Sesión vencida: volvé a ingresar',401);h.Authorization='Bearer '+t;}
+ Object.assign(h,o.headers||{});let r;
+ try{r=await fetch(CLOUD.url+path,{method:o.method||'GET',headers:h,body:o.body!==undefined?JSON.stringify(o.body):undefined});}catch(e){if(!o.fn)cl.online=false;throw new NetErr();}
+ if(!o.fn)cl.online=true;let j=null;const txt=await r.text();try{j=txt?JSON.parse(txt):null;}catch(e){j=txt;}
+ if(r.status===502||r.status===503||r.status===504){if(r.status===502&&j&&typeof j==='object'&&j.etapa)throw new ApiErr(String(j.error||'ARCA no respondió'),502,j);if(!o.fn)cl.online=false;throw new NetErr();}
+ if(!r.ok){const m=(j&&(j.message||j.msg||j.error_description||j.error))||('Error '+r.status);throw new ApiErr(typeof m==='string'?m:'Error '+r.status,r.status,j);}
+ return j;}
+const rpc=(fn,args,o)=>hreq('/rest/v1/rpc/'+fn,{method:'POST',body:args||{},...(o||{})});
+const sel=(q)=>hreq('/rest/v1/'+q);
+async function accessToken(){const s=cl.ses;if(!s)return'';
+ if(s.exp-60000>Date.now())return s.access;
+ try{const r=await fetch(CLOUD.url+'/auth/v1/token?grant_type=refresh_token',{method:'POST',headers:{apikey:CLOUD.key,'Content-Type':'application/json'},body:JSON.stringify({refresh_token:s.refresh})});
+  if(r.status===400||r.status===401||r.status===403){cl.ses=null;await cloudMetaSave();return'';}
+  const j=await r.json();if(!j.access_token)return s.exp>Date.now()?s.access:'';setSes(j);await cloudMetaSave();cl.online=true;return cl.ses.access;}
+ catch(e){cl.online=false;return s.exp>Date.now()?s.access:'';}}
+function setSes(j){cl.ses={access:j.access_token,refresh:j.refresh_token,exp:Date.now()+(+j.expires_in||3600)*1000};if(j.user){cl.uid=j.user.id;cl.email=(j.user.email||cl.email||'').toLowerCase();}}
+const authCall=(p,b)=>hreq('/auth/v1/'+p,{method:'POST',auth:false,body:b});
+async function signIn(email,pass){const j=await authCall('token?grant_type=password',{email,password:pass});setSes(j);return j;}
+async function signUp(email,pass){const j=await authCall('signup',{email,password:pass});
+ if(j&&j.access_token){setSes(j);return{ok:true};}
+ return{ok:false,confirm:true};}
+/* ---------- qué colección del servidor corresponde a qué parte del estado ---------- */
+const COLS=[
+ {c:'prod',key:'products',strip:['stock'],del:1},
+ {c:'ventas',key:'sales'},
+ {c:'turnos',key:'sessions'},
+ {c:'movs',key:'movs'},
+ {c:'cierres',key:'closures',strip:['notes'],once:1},
+ {c:'rubros',key:'rubros',del:1},
+ {c:'clientes',key:'customers',pii:['name','last','birth','wa','email','secret','notes','dni','cardSecrets','taxid','razon','domFis'],del:1},
+ {c:'fiado',key:'fiadoPays',once:1},
+ {c:'cortesx',key:'cortesX',once:1},
+ {c:'emp',key:'employees',pii:['pin','dni','qk','cbu','phone','addr','emerg'],del:1},
+ {c:'fich',key:'punches'},
+ {c:'puestos',key:'puestos',del:1},
+ {c:'tareas',key:'tasks',del:1},
+ {c:'tlogs',key:'taskLogs',del:1,synth:l=>l.taskId+':'+l.day},
+ {c:'cupones',key:'coupons',strip:['uses'],del:1},
+ {c:'planes',key:'plans',del:1},
+ {c:'membs',key:'members'},
+ {c:'pedidos',key:'orderReqs',del:1},
+ {c:'arrep',key:'arrep'},
+ {c:'pya',key:'pya'},
+ {c:'lotes',key:'batches'},
+ {c:'sucs',key:'branches'},
+ {c:'cajas',key:'registers'},
+ {c:'ctransf',key:'transfers',once:1},
+ {c:'ctev',key:'transferEvents',once:1},
+ {c:'cdet',key:'payDetails',once:1,pii:['ordName','ordDoc']},
+ {c:'acuer',key:'agreements',del:1},
+ {c:'cexc',key:'creditOv'},
+ {c:'cexcu',key:'creditUse',once:1},
+ /* V26.54 · 20-fidelizacion-operacion.sql */
+ {c:'fidmov',key:'fidmov',once:1},
+ {c:'giftmov',key:'giftmov',once:1},
+ {c:'gift',key:'gifts'},
+ {c:'juego',key:'games'},
+ {c:'devol',key:'returns',once:1},
+ {c:'merma',key:'mermas',once:1},
+ {c:'presup',key:'quotes'},
+ /* V26.60 · 22-crm.sql · CRM omnicanal: conversaciones y mensajes (texto y clave del chat cifrados) */
+ {c:'conv',key:'convs',pii:['k','name','wa','lastTxt']},
+ {c:'cmsg',key:'cmsgs',once:1,pii:['text']},
+ /* V26.64 · 23-rrhh.sql · Recursos Humanos (los archivos NO viajan: sólo su descripción) */
+ {c:'hrshift',key:'hrShifts',del:1},
+ {c:'hrreq',key:'hrReqs',pii:['note']},
+ {c:'hrdoc',key:'hrDocs',strip:['data'],del:1},
+ {c:'hrpay',key:'hrPays'},
+ {c:'hrjob',key:'hrJobs',del:1},
+ {c:'hrcand',key:'hrCands',pii:['name','phone','email','note'],del:1},
+ {c:'hritem',key:'hrItems'},
+ {c:'hrmsg',key:'hrMsgs',once:1,pii:['txt']},
+ {c:'hrplan',key:'hrPlanLog',once:1}];
+const BYC=Object.fromEntries(COLS.map(x=>[x.c,x]));
+const DELC=new Set(COLS.filter(x=>x.del).map(x=>x.c));
+const CFGIDS=['tenant','cfg','menu','loyalty','roles','integ','legal','payadj'];
+const ONCEC=new Set(['smov','audit','cierres','cnotas','otp','sellos','cusos','fiado','cortesx','fidmov','giftmov','devol','merma','juego','cmsg','hrmsg','hrplan']);
+const r3=n=>Math.round(n*1000)/1000;
+function stripOf(col,it){const d=JSON.parse(JSON.stringify(it));(col.strip||[]).forEach(k=>delete d[k]);return d;}
+function cfgWire(id){switch(id){
+ case'tenant':{const t=JSON.parse(JSON.stringify(S.tenant));delete t.caja;delete t.regId;return t;}
+ case'cfg':return JSON.parse(JSON.stringify(S.cfg));
+ case'menu':return JSON.parse(JSON.stringify(S.menu));
+ case'loyalty':return{goal:S.loyalty.goal,reward:S.loyalty.reward};
+ case'roles':return JSON.parse(JSON.stringify(S.roles));
+ case'integ':{const x=JSON.parse(JSON.stringify(S.integ));return x;}
+ case'legal':return JSON.parse(JSON.stringify(S.legal));
+ case'payadj':return JSON.parse(JSON.stringify(S.payadj||{on:false,stack:false,rules:{}}));}return null;}
+/* todo lo que hoy existe en este equipo, en el formato que viaja */
+function collectAll(){const out=[];
+ for(const col of COLS){const arr=S[col.key]||[];for(const it of arr){if(!it)continue;const id=col.synth?col.synth(it):it.id;if(!id||String(id).length>80)continue;const w=stripOf(col,it);if(col.c==='clientes')w.pfp=custPfp(it);out.push({c:col.c,id:String(id),w,col});}}
+ for(const e of S.audit)out.push({c:'audit',id:e.id,w:Object.assign({dev:cl.dev},e)});
+ for(const e of S.loyalty.ledger)out.push({c:'sellos',id:e.id,w:e});
+ for(const [k,ts] of Object.entries(S.loyalty.usedOtp||{}))if(k.length<=80)out.push({c:'otp',id:k,w:{ts}});
+ for(const cp of S.coupons)for(const u of(cp.uses||[]))if(u.sale)out.push({c:'cusos',id:(cp.id+':'+u.sale).slice(0,80),w:{cp:cp.id,ts:u.ts,sale:u.sale,cust:u.cust||''}});
+ for(const k of S.closures)for(const n of(k.notes||[]))out.push({c:'cnotas',id:(k.id+':'+cyrb(canon(n))).slice(0,80),w:Object.assign({cl:k.id},n)});
+ for(const id of CFGIDS){if(id==='payadj'&&!(S.payadj&&S.payadj.saved))continue; /* V26.49: sólo después de que el administrador la guardó */ out.push({c:'cfg',id,w:cfgWire(id)});}
+ if(cl.clubPriv&&cl.clubPriv.new)out.push({c:'cfg',id:'clubkey',w:{pub:cl.clubPriv.pub,priv:cl.clubPriv.priv},raw:1});
+ return out;}
+async function sealPii(col,id,w){if(!col||!col.pii||!col.pii.length)return w;const d=Object.assign({},w),p={};let any=false;for(const k of col.pii)if(d[k]!==undefined){p[k]=d[k];delete d[k];any=true;}
+ if(any)d.__pii=await sealJ(p,cl.dek,'pii|'+cl.comercio.id+'|'+col.c+'|'+id);return d;}
+async function openPii(col,id,d){if(!d||!d.__pii)return d;const o=Object.assign({},d);const box=o.__pii;delete o.__pii;
+ try{Object.assign(o,await openJ(box,cl.dek,'pii|'+cl.comercio.id+'|'+col.c+'|'+id));}catch(e){o.__piiError=true;}return o;}
+/* ---------- meta local ---------- */
+async function cloudMetaSave(){await kvPut('cloud',{v:1,ses:cl.ses,uid:cl.uid,email:cl.email,rol:cl.rol,nombre:cl.nombre,comercio:cl.comercio,dev:cl.dev,snum:cl.snum,fp:cl.fp,base:cl.base,outStock:cl.outStock,cursor:cl.cursor,dekWrap:cl.dekWrap||null,rejects:cl.rejects.slice(-30),pubHash:cl.pubHash||'',adopted:cl.adopted,cajaNo:cl.cajaNo,lastOk:cl.lastOk});}
+/* ---------- empujar cambios ---------- */
+function outSum(pid){return cl.outStock.reduce((a,m)=>a+(m.pid===pid?m.d:0),0);}
+function queueStock(){for(const p of S.products){if(!p||!p.id)continue;const b=cl.base[p.id]===undefined?0:cl.base[p.id];const d=r3((+p.stock||0)-b);
+  if(Math.abs(d)>=0.0005){cl.outStock.push({id:cl.dev+'-'+(++cl.snum),pid:p.id,d});cl.base[p.id]=r3(b+d);}}}
+async function pushAll(){queueStock();const all=collectAll();const seen=new Set(),ch=[];
+ for(const it of all){const key=it.c+'|'+it.id;seen.add(key);const h=cyrb(canon(it.w));if(cl.fp[key]!==h)ch.push({it,key,h});}
+ for(const key of Object.keys(cl.fp)){if(seen.has(key))continue;const c=key.split('|')[0];if(DELC.has(c))ch.push({key,del:1,c,id:key.slice(c.length+1)});else delete cl.fp[key];}
+ const rk=x=>{const c=x.it?x.it.c:x.c;return (c==='prod'||c==='rubros')?0:(c==='ctransf'?2:(c==='ctev'?3:(c==='cdet'?4:1)));};ch.sort((a,b)=>rk(a)-rk(b));
+ let sent=0;
+ for(let i=0;i<ch.length;i+=150){const part=ch.slice(i,i+150),body=[];
+  for(const x of part){if(x.del){body.push({c:x.c,id:x.id,d:{},x:true});continue;}
+   const col=BYC[x.it.c];body.push({c:x.it.c,id:x.it.id,d:x.it.raw?x.it.w:await sealPii(col,x.it.id,x.it.w)});}
+  const r=await rpc('sincronizar',{p_comercio:cl.comercio.id,p_dispositivo:cl.dev,p_cambios:body});
+  const bad=new Map((r.rechazos||[]).map(z=>[z.c+'|'+z.id,z.motivo]));
+  for(const x of part){const key=x.key;if(x.del){delete cl.fp[key];}else cl.fp[key]=x.h;if(bad.has(key))noteReject(key,bad.get(key));}
+  sent+=part.length;await cloudMetaSave();}
+ /* movimientos de stock: recién cuando el producto ya está en el servidor */
+ for(;;){const ready=cl.outStock.filter(m=>cl.fp['prod|'+m.pid]!==undefined).slice(0,200);if(!ready.length)break;
+  const r=await rpc('sincronizar',{p_comercio:cl.comercio.id,p_dispositivo:cl.dev,p_cambios:ready.map(m=>({c:'smov',id:m.id,d:{pid:m.pid,d:m.d,dev:cl.dev}}))});
+  const bad=new Map((r.rechazos||[]).map(z=>[z.id,z.motivo]));ready.forEach(m=>{if(bad.has(m.id))noteReject('smov|'+m.id,bad.get(m.id)+' ('+m.pid+')');});
+  const ids=new Set(ready.map(m=>m.id));cl.outStock=cl.outStock.filter(m=>!ids.has(m.id));sent+=ready.length;await cloudMetaSave();}
+ return sent;}
+function noteReject(key,m){cl.rejects.push({key,m,ts:now()});if(cl.rejects.length>60)cl.rejects.shift();}
+/* ---------- bajar cambios ---------- */
+const arrOf=col=>{if(!Array.isArray(S[col.key]))S[col.key]=[];return S[col.key];};
+async function applyRec(r){const c=r.coleccion,id=r.id,key=c+'|'+id;
+ if(c==='smov'||c==='cnotas'&&false)return;
+ if(c==='audit'){const d=r.datos;if(d&&d.dev!==cl.dev){S.auditX=S.auditX||[];if(!S.auditX.some(a=>a.id===d.id))S.auditX.push(d);}return;}
+ if(c==='sellos'){if(!S.loyalty.ledger.some(e=>e.id===id))S.loyalty.ledger.push(r.datos);return;}
+ if(c==='otp'){S.loyalty.usedOtp[id]=r.datos.ts;return;}
+ if(c==='cusos'){const cp=S.coupons.find(x=>x.id===r.datos.cp);if(cp){cp.uses=cp.uses||[];if(!cp.uses.some(u=>u.sale===r.datos.sale))cp.uses.push({ts:r.datos.ts,sale:r.datos.sale,cust:r.datos.cust||''});}return;}
+ if(c==='cnotas'){const k=S.closures.find(x=>x.id===r.datos.cl);if(k){k.notes=k.notes||[];const n=Object.assign({},r.datos);delete n.cl;if(!k.notes.some(m=>canon(m)===canon(n)))k.notes.push(n);}return;}
+ if(c==='cfg'){const d=r.datos;
+  if(id==='clubkey'){if(d&&d.priv&&d.pub&&cl.dek){try{cl.clubPriv={pub:d.pub,priv:d.priv,jwk:await openJ(d.priv,cl.dek,'clubkey|'+cl.comercio.id)};}catch(e){}}return;}
+  const h=cyrb(canon(d));const loc=cfgWire(id);if(cl.fp[key]!==undefined&&cyrb(canon(loc))!==cl.fp[key])return; // cambio local sin subir: gana el local
+  if(id==='tenant'){const caja=S.tenant.caja,regId=S.tenant.regId;S.tenant=Object.assign({},d,{caja,regId});}
+  else if(id==='cfg')S.cfg=d;else if(id==='menu')S.menu=d;else if(id==='roles')S.roles=rolesMigrate(d);else if(id==='integ')S.integ=d;else if(id==='legal')S.legal=d;else if(id==='payadj')S.payadj=d;
+  else if(id==='loyalty'){S.loyalty.goal=d.goal;S.loyalty.reward=d.reward;}
+  cl.fp[key]=h;return;}
+ const col=BYC[c];if(!col)return;const arr=arrOf(col);
+ const idx=arr.findIndex(x=>x&&String(col.synth?col.synth(x):x.id)===id);
+ if(r.borrado){if(idx>=0)arr.splice(idx,1);delete cl.fp[key];return;}
+ let d=await openPii(col,id,r.datos);const srvStock=c==='prod'?+(d.stock||0):0;if(c==='prod')delete d.stock;
+ const h=cyrb(canon(d));
+ if(idx<0){const n=Object.assign({},d);if(col.strip&&col.strip.includes('uses'))n.uses=[];if(col.strip&&col.strip.includes('notes'))n.notes=[];if(c==='prod')n.stock=r3(srvStock+outSum(id));arr.push(n);cl.fp[key]=h;if(c==='prod')cl.base[id]=r3(srvStock+outSum(id));return;}
+ const loc=arr[idx];const lh=cyrb(canon(stripOf(col,loc)));
+ if(c==='prod'){const base=cl.base[id]===undefined?(+loc.stock||0):cl.base[id];const unq=r3((+loc.stock||0)-base);loc.stock=r3(srvStock+outSum(id)+unq);cl.base[id]=r3(srvStock+outSum(id));}
+ if(cl.fp[key]!==undefined&&lh!==cl.fp[key])return; // cambio local sin subir: gana el local
+ if(lh===h){cl.fp[key]=h;return;}
+ const keep={};(col.strip||[]).forEach(k=>{if(k!=='stock')keep[k]=loc[k];});const stock=loc.stock;
+ if(c==='ventas')['arca','arcaNC'].forEach(k=>{if(loc[k]&&loc[k].cae&&!(d[k]&&d[k].cae))keep[k]=loc[k];}); // una lectura vieja no borra un CAE ya obtenido
+ for(const k of Object.keys(loc))delete loc[k];Object.assign(loc,d,keep);if(c==='prod')loc.stock=stock;cl.fp[key]=(keep.arca||keep.arcaNC)?cyrb(canon(stripOf(col,loc))):h;}
+function fixUses(){for(const cp of S.coupons){if(!cp.uses)continue;cp.uses=cp.uses.filter(u=>{const s=S.sales.find(x=>x.id===u.sale);return!s||s.status==='ok'||s.status==='pendiente';});}}
+async function pullAll(){let from=cl.cursor?new Date(Date.parse(cl.cursor)-30000).toISOString():null,max=cl.cursor,total=0,first=true;
+ for(let page=0;page<200;page++){const rows=await rpc('bajar',{p_comercio:cl.comercio.id,p_desde:from,p_limite:500});
+  for(const r of rows){try{await applyRec(r);}catch(e){console.warn('applyRec',r.coleccion,r.id,e);}if(!max||r.actualizado>max)max=r.actualizado;}
+  total+=rows.length;if(rows.length<500)break;from=rows[rows.length-1].actualizado;first=false;}
+ fixUses();cl.cursor=max;await cloudMetaSave();return total;}
+/* ---------- estado local cifrado ---------- */
+async function cloudLoadState(){const st=await kvGet('state');if(st&&st.enc&&st.cid===cl.comercio.id){try{const o=await openJ(st,cl.dek,'state|'+cl.comercio.id);if(o&&o.v===3)return mergeDefaults(o);}catch(e){}}return null;}
+let persistT;
+async function cloudPersistNow(){if(!cl.ready||!cl.dek)return;try{const box=await sealJ(JSON.parse(JSON.stringify(S)),cl.dek,'state|'+cl.comercio.id);box.enc=1;box.cid=cl.comercio.id;await kvPut('state',box);}catch(e){console.warn('persist',e);}}
+const cloudHook={persist(){clearTimeout(persistT);persistT=setTimeout(cloudPersistNow,1200);cloudTouch();}};
+let touchT;function cloudTouch(){if(!cl.ready)return;clearTimeout(touchT);touchT=setTimeout(()=>cloudSync(),1500);cloudBadge();}
+/* estado en blanco para un equipo que se une a un comercio que ya tiene datos */
+function blankState(){const d=DEF();d.rubros=[];d.products=[];d.employees=[];d.puestos=[];d.tasks=[];d.plans=[];d.coupons=[];d.users=[];d.customers=[];return d;}
+/* ---------- ingreso ---------- */
+function cloudBadge(){const el=document.getElementById('cloudtag');if(!el)return;if(!cl.ready){el.textContent='';return;}
+ let n=0;try{n=pendingCount();}catch(e){}
+ if(!cl.online||cl.lastErr==='Sin conexión'){el.className='tag warn';el.textContent='☁ Sin conexión'+(n?' · '+n+' por subir':'');}
+ else if(cl.busy){el.className='tag';el.textContent='☁ Sincronizando…';}
+ else if(cl.lastErr){el.className='tag bad';el.textContent='☁ Error: '+cl.lastErr.slice(0,40);}
+ else{el.className='tag ok';el.textContent='☁ Al día'+(n?' · '+n+' por subir':'');}}
+function pendingCount(){let n=cl.outStock.length;for(const it of collectAll())if(cl.fp[it.c+'|'+it.id]!==cyrb(canon(it.w)))n++;return n;}
+async function cloudBoot(){
+ const meta=await kvGet('cloud');
+ cl.dev=(meta&&meta.dev)||('d'+uid()+uid());cl.snum=(meta&&meta.snum)||0;cl.meta=meta||null;
+ S=DEF();S.users=[];
+ if(!meta)await kvPut('cloud',{v:1,dev:cl.dev,snum:0});
+ CLOUD_HOOK=cloudHook;
+ loadPubSnap().then(()=>{if(location.hash===''||location.hash==='#menu')pubReload();});
+ const m=/access_token=([^&]+).*type=recovery/.exec(location.hash);if(m){history.replaceState(null,'',location.pathname+location.search+'#acceso');cl.recoveryToken=decodeURIComponent(m[1]);}
+ const gq=googleReturnParams();
+ route();if(gq)googleReturn(gq);}
+function loginHtml(mode,msg,pre){const em=esc((pre&&pre.email)||(cl.meta&&cl.meta.email)||'');
+ const tab=(k,t)=>`<button type="button" class="btn sm ${mode===k?'gold':''}" data-act="cloudMode" data-mode="${k}">${t}</button>`;
+ let f='';
+ if(mode==='ingresar')f=`${googleBtnHtml()}<label for="cl-em">Correo</label><input id="cl-em" type="email" autocomplete="username" value="${em}"><label for="cl-pw">Contraseña</label><input id="cl-pw" type="password" autocomplete="current-password">`;
+ else if(mode==='crear')f=`<p class="sm mut">Para dueños. Vincular Business te da un <b>código de invitación</b> (se pide una sola vez).</p><label for="cl-nm">Nombre del comercio</label><input id="cl-nm" maxlength="80"><label for="cl-em">Correo</label><input id="cl-em" type="email" autocomplete="username" value="${em}"><label for="cl-pw">Contraseña (mínimo 10 caracteres)</label><input id="cl-pw" type="password" autocomplete="new-password"><label for="cl-co">Código de invitación de Vincular Business</label><input id="cl-co" autocomplete="off">`;
+ else if(mode==='unirme')f=`<p class="sm mut">Para el equipo. El administrador te da un <b>código de acceso</b> y tu correo queda invitado.</p><label for="cl-em">Correo (el mismo con el que te invitaron)</label><input id="cl-em" type="email" autocomplete="username" value="${em}"><label for="cl-pw">Elegí tu contraseña (mínimo 10 caracteres)</label><input id="cl-pw" type="password" autocomplete="new-password"><label for="cl-co">Código de acceso</label><input id="cl-co" autocomplete="off">`;
+ else f=`<div class="card sm" style="margin:.4rem 0"><p style="margin-top:0"><b>¿Olvidaste tu contraseña?</b> Pedísela al <b>administrador de tu comercio</b> (no al soporte del desarrollador): él te vuelve a dar acceso desde <b>Usuarios y permisos → Equipo</b> (te quita y te invita de nuevo con un código de acceso nuevo).</p>
+ <p>También podés probar con <b>«Olvidé mi contraseña»</b> en «Ingresar»: te llega un correo para elegir otra${googleOn?', o entrá con <b>«Ingresar con Google»</b> si tu Gmail está asociado':''}.</p>
+ <p style="margin-bottom:0"><b>Si sos el administrador:</b> usá «Olvidé mi contraseña» y después tu <b>código de recuperación</b> (el que guardaste al crear el comercio) para volver a abrir los datos.</p></div>`;
+ return `<div class="lbox"><div style="text-align:center"><img src="${LOGO_MENU}" alt="RAVE" style="width:150px;border-radius:12px"><h1>Acceso del equipo</h1><p class="mut sm">${esc(S.tenant.legal||'Sistema RAVE')}</p></div>
+ <div class="row" style="justify-content:center;gap:.4rem;margin:.4rem 0">${tab('ingresar','Ingresar')}${tab('crear','Crear comercio')}${tab('unirme','Tengo una invitación')}${tab('ayuda','Olvidé mi clave')}</div>${f}
+ <div class="merr" id="lerr" role="alert">${esc(msg||'')}</div>
+ <div class="row" style="margin-top:.8rem">${mode==='ayuda'?'':`<button class="btn gold sp" data-act="cloudGo" data-mode="${mode}" id="cl-go">${mode==='ingresar'?'Ingresar':'Continuar'}</button>`}<a class="btn" href="#menu">Volver al menú</a></div>
+ ${mode==='ingresar'?'<p class="sm" style="margin-top:.6rem"><a href="#" data-act="cloudForgot">Olvidé mi contraseña</a></p>':''}
+ ${vbFooter(true)}</div>`;}
+let loginMode='ingresar';
+function cloudLogin(msg){const L=$('#login');L.hidden=false;
+ if(!CLOUD.on){L.innerHTML=`<div class="lbox"><h1>Acceso del equipo</h1><p>La conexión a la nube todavía no está configurada en este archivo (<b>Pendiente de configuración</b>). Vincular Business carga la dirección del proyecto y la clave publicable.</p><div class="row"><a class="btn" href="#menu">Volver al menú</a></div></div>`;return;}
+ if(cl.recoveryToken){L.innerHTML=`<div class="lbox"><h1>Nueva contraseña</h1><p class="sm mut">Elegí una contraseña nueva (mínimo 10 caracteres). Después vas a necesitar tu <b>código de recuperación</b> para volver a abrir tus datos.</p><label for="cl-pw">Contraseña nueva</label><input id="cl-pw" type="password" autocomplete="new-password"><div class="merr" id="lerr" role="alert">${esc(msg||'')}</div><div class="row" style="margin-top:.8rem"><button class="btn gold" data-act="cloudNewPass">Guardar</button></div></div>`;return;}
+ L.innerHTML=loginHtml(loginMode,msg);
+ const go=()=>A.cloudGo($('#cl-go'));L.querySelectorAll('input').forEach(i=>i.addEventListener('keydown',e=>{if(e.key==='Enter')go();}));}
+A.cloudMode=el=>{loginMode=el.dataset.mode;cloudLogin();};
+const lerr=m=>{const e=$('#lerr');if(e)e.textContent=m||'';};
+const mailOk=s=>/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(s)&&s.length<=120;
+function errTxt(e){if(e&&e.net)return'No hay conexión con la nube. Probá de nuevo cuando vuelva internet.';const m=String((e&&e.message)||e||'');
+ if(/invalid login|Invalid login/i.test(m))return'Correo o contraseña incorrectos.';if(/already registered|already been registered/i.test(m))return'Ese correo ya tiene cuenta: usá "Ingresar".';
+ if(/rate limit|too many/i.test(m))return'Demasiados intentos: esperá unos minutos.';return m;}
+A.cloudGo=async el=>{const mode=el.dataset.mode;lerr('');el.disabled=true;
+ try{
+  if(mode==='ayuda')return; /* V26.59: la clave se le pide al administrador del comercio, no al soporte del desarrollador */
+  const email=val('cl-em').trim().toLowerCase(),pass=val('cl-pw');
+  if(!mailOk(email))return lerr('Escribí un correo válido.');
+  if(mode==='ingresar'){if(!pass)return lerr('Escribí tu contraseña.');await cloudSignInFlow(email,pass,{});return;}
+  if(pass.length<10)return lerr('La contraseña necesita al menos 10 caracteres.');
+  const code=val('cl-co').trim();if(code.length<6)return lerr('Falta el código.');
+  let r;try{r=await signUp(email,pass);}catch(e){if(/already/i.test(String(e.message))){await signIn(email,pass);r={ok:true};}else throw e;}
+  if(!r.ok)return lerr('Te mandamos un correo para confirmar la cuenta. Confirmala y volvé a "Ingresar".');
+  if(mode==='crear'){const nm=val('cl-nm').trim();if(nm.length<2)return lerr('Escribí el nombre del comercio.');await cloudSignInFlow(email,pass,{newCommerce:{nombre:nm,codigo:code}});}
+  else await cloudSignInFlow(email,pass,{inviteCode:code,already:true});
+ }catch(e){lerr(errTxt(e));}finally{el.disabled=false;}};
+/* V26.47 · número de caja ocupado: explica por qué (cada navegador/equipo reserva su número para que los tickets no se repitan),
+   muestra qué cajas están en uso, por quién y su último ingreso, y propone el primer número libre */
+async function askCajaNro(cur){let L=[];try{L=await sel('cajas?comercio_id=eq.'+cl.comercio.id+'&select=nro,nombre,visto&order=nro')||[];}catch(e){L=[];}
+ const used=new Set(L.map(x=>+x.nro));let free=1;while(used.has(free)&&free<99)free++;
+ const f=t=>{try{return fmtDT(new Date(t).getTime());}catch(e){return'';}};const o=L.find(x=>+x.nro===cur);
+ const pre=`<p class="sm">Este navegador es <b>un equipo nuevo</b> para el sistema (otra computadora u otro celular, otro navegador, o se borraron los datos del navegador). Cada equipo usa su propio número de caja para que los tickets no se repitan.</p>
+  ${o?`<p class="sm">La caja <b>${cur}</b> ya está reservada${o.nombre?' por <b>'+esc(o.nombre)+'</b>':''}${o.visto?' (último ingreso '+esc(f(o.visto))+')':''}.</p>`:''}
+  ${L.length?`<div class="tw" style="max-height:170px;overflow:auto;margin:.4rem 0"><table data-nosort><thead><tr><th>Caja</th><th>Equipo de</th><th>Último ingreso</th></tr></thead><tbody>${L.map(x=>`<tr><td>${+x.nro}</td><td>${esc(x.nombre||'—')}</td><td>${esc(f(x.visto))}</td></tr>`).join('')}</tbody></table></div>`:''}
+  <p class="sm mut">Te proponemos la caja libre <b>${free}</b>. Si un equipo viejo ya no se usa, el administrador puede liberar su número en <b>Nube → Números de caja de los equipos</b>.</p>`;
+ /* V26.53: el administrador puede pasar la caja ocupada a este equipo desde el mismo cartel (antes había que entrar con otro número e ir a Nube) */
+ const take=cl.rol==='admin'&&o?`<div class="card" style="margin:.5rem 0;padding:.7rem;border:1px solid var(--gold)"><p class="sm" style="margin:0 0 .5rem">¿Este equipo <b>es</b> la caja ${cur} (la misma computadora con otro navegador, el programa de Windows o los datos del navegador borrados)? Si el equipo viejo <b>ya no se usa</b>, pasale el número a este:</p><button type="button" class="btn" id="ask-take" style="min-height:48px">Usar la caja ${cur} en este equipo</button><p class="sm mut" style="margin:.4rem 0 0">No se borran ventas, cajas ni cierres. No lo hagas si el otro equipo sigue vendiendo con ese número: los tickets se repetirían.</p></div>`:'';
+ return new Promise(res=>{const w=modal('Número de caja para este equipo',`${pre}${take}<label for="ask-v">${take?'O usá otro número (1 a 99)':'Número de caja (1 a 99)'}</label><input id="ask-v" inputmode="numeric" autocomplete="off" value="${free}">`,
+  {okText:'Usar este número',onOk:w2=>{const v=val('ask-v').trim();if(!/^\d{1,2}$/.test(v)||+v<1||+v>99){w2._err('Escribí un número de 1 a 99.');return false;}res(v);}});
+  w.addEventListener('click',async e=>{if(e.target.closest('[data-m="x"]'))res(null);const t=e.target.closest('#ask-take');if(!t)return;t.disabled=true;t.textContent='Pasando la caja…';
+   try{await rpc('liberar_caja',{p_comercio:cl.comercio.id,p_nro:cur,p_disp:cl.dev});audit('CAJA_LIBERADA','número de caja '+cur+' pasado a este equipo (estaba en '+(o.nombre||'otro equipo')+')');w.remove();res(String(cur));}
+   catch(err){t.disabled=false;t.textContent='Usar la caja '+cur+' en este equipo';const m=errTxt(err);w._err(/liberar_caja|PGRST202|404|Could not find/i.test(m)?'Falta instalar en la nube la función para pasar números de caja (19-liberar-caja.sql). Avisale a Vincular Business; mientras tanto usá otro número.':m);}});});}
+function askText(title,label,opts={}){return new Promise(res=>{const w=modal(title,`${opts.pre||''}<label for="ask-v">${esc(label)}</label><input id="ask-v" ${opts.secret?'type="password"':''} autocomplete="off" ${opts.num?'inputmode="numeric"':''} value="${esc(opts.value||'')}">${opts.hint?`<p class="sm mut">${esc(opts.hint)}</p>`:''}`,
+  {okText:opts.ok||'Aceptar',onOk:w2=>{const v=val('ask-v').trim();if(!v){w2._err('Completá este dato.');return false;}res(v);}});
+ w.addEventListener('click',e=>{const b=e.target.closest('[data-m="x"]');if(b)res(null);});});}
+function showSecret(title,code,msg,share){return new Promise(res=>{modal(title,`<p>${msg}</p><p style="font:700 1.4rem/1.3 monospace;letter-spacing:.08em;text-align:center;background:#f4efe6;color:#242220;padding:.8rem;border-radius:10px;user-select:all">${esc(code)}</p>${share?`<div class="row" style="flex-wrap:wrap"><button class="btn sm" data-act="secCopy" data-t="${esc(share)}">Copiar mensaje de invitación</button><button class="btn sm" data-act="secWa" data-t="${esc(share)}">Enviar por WhatsApp</button></div>`:''}<label class="chk"><input type="checkbox" id="sec-ok"> Ya lo guardé en un lugar seguro</label>`,
+  {noCancel:true,okText:'Listo',onOk:w=>{if(!$('#sec-ok',w).checked){w._err('Marcá que lo guardaste.');return false;}res(true);}});});}
+A.secCopy=el=>{try{navigator.clipboard.writeText(el.dataset.t);toast('Mensaje copiado');}catch(e){toast('No se pudo copiar',1);}};
+A.secWa=el=>{window.open('https://wa.me/?text='+encodeURIComponent(el.dataset.t),'_blank','noopener,noreferrer');};
+async function cloudFetchMember(email){
+ const mem=await sel('miembros?select=rol,nombre,comercio_id,comercios(id,nombre,slug)&usuario_id=eq.'+cl.uid);
+ if(!Array.isArray(mem)||!mem.length)return null;
+ return mem.find(m=>m.comercios&&m.comercios.slug===CLOUD.slug)||mem[0];}
+async function cloudSignInFlow(email,pass,opts){
+ let offline=false,raw,mem=null,created=false;const meta=cl.meta||{};
+ if(!opts.already){try{await signIn(email,pass);}catch(e){if(e.net&&meta.email===email&&meta.dekWrap&&meta.comercio){offline=true;}else throw e;}}
+ cl.email=email;
+ if(offline){cl.uid=meta.uid;cl.rol=meta.rol;cl.nombre=meta.nombre;cl.comercio=meta.comercio;cl.slug=meta.comercio.slug;cl.ses=meta.ses||null;cl.dekWrap=meta.dekWrap;
+  try{raw=await unwrapDek(meta.dekWrap,pass);}catch(e){throw new Error('Correo o contraseña incorrectos.');}}
+ else{
+  mem=await cloudFetchMember();
+  if(!mem&&opts.inviteCode){const r=await rpc('aceptar_invitacion',{p_huella:sha256(normCode(opts.inviteCode))});if(!r.ok)throw new Error(r.error||'El código no es correcto.');mem=await cloudFetchMember();}
+  if(!mem&&opts.newCommerce){const r=await rpc('crear_comercio',{p_nombre:opts.newCommerce.nombre,p_rubro:'comercio',p_codigo:opts.newCommerce.codigo});if(!r.ok)throw new Error(r.error||'No se pudo crear el comercio.');created=true;mem=await cloudFetchMember();}
+  if(!mem)throw new Error('Tu cuenta todavía no pertenece a ningún comercio. Usá "Crear comercio" (con el código de Rave) o "Tengo una invitación".');
+  cl.rol=mem.rol;cl.nombre=mem.nombre||email.split('@')[0];cl.comercio={id:mem.comercios.id,nombre:mem.comercios.nombre,slug:mem.comercios.slug};cl.slug=cl.comercio.slug;
+  const cid=cl.comercio.id;
+  const kr=await sel(`llaves?select=kdf,wrap,temporal&comercio_id=eq.${cid}&usuario_id=eq.${cl.uid}`);
+  const patch=async nw=>{await hreq(`/rest/v1/llaves?comercio_id=eq.${cid}&usuario_id=eq.${cl.uid}`,{method:'PATCH',body:{kdf:nw.kdf,wrap:nw.wrap,temporal:false,actualizado:new Date().toISOString()},headers:{Prefer:'return=minimal'}});};
+  if(!kr.length){
+   let empty=false;if(cl.rol==='admin'){const b=await rpc('bajar',{p_comercio:cid,p_desde:null,p_limite:1});const rr=await sel('llaves_recuperacion?select=comercio_id&comercio_id=eq.'+cid);empty=!b.length&&!rr.length;}
+   if(!empty)throw new Error('Tu cuenta no tiene la llave de cifrado de este comercio. Pedile al administrador una invitación nueva.');
+   raw=rnd(32);const w=await wrapDek(raw,pass);await hreq('/rest/v1/llaves',{method:'POST',body:{comercio_id:cid,usuario_id:cl.uid,kdf:w.kdf,wrap:w.wrap,temporal:false},headers:{Prefer:'return=minimal'}});cl.dekWrap=w;created=true;
+   const code=genCode(20,5);const rw=await wrapDek(raw,normCode(code));await hreq('/rest/v1/llaves_recuperacion',{method:'POST',body:{comercio_id:cid,kdf:rw.kdf,wrap:rw.wrap},headers:{Prefer:'return=minimal'}});
+   await showSecret('Código de recuperación',code,'Este código es la <b>única forma</b> de volver a abrir los datos si olvidás la contraseña. Se muestra <b>una sola vez</b>: anotalo y guardalo (no en este equipo).');}
+  else if(kr[0].temporal){const code=opts.inviteCode||await askText('Código de acceso','Escribí el código de acceso que te dio el administrador',{});if(!code)throw new Error('Ingreso cancelado.');
+   try{raw=await unwrapDek(kr[0],normCode(code));}catch(e){throw new Error('El código de acceso no es correcto.');}
+   const nw=await wrapDek(raw,pass);await patch(nw);cl.dekWrap=nw;}
+  else if(opts.rawDek){raw=opts.rawDek;cl.dekWrap=kr[0];}
+  else{try{raw=await unwrapDek(kr[0],pass);cl.dekWrap=kr[0];}
+   catch(e){if(opts.google)throw new Error('La clave del sistema no es correcta.'); // la contraseña fue restablecida: la llave se reabre con el código de recuperación
+    const code=await askText('Abrir tus datos','Tu contraseña fue restablecida. Escribí tu código de recuperación (el administrador lo guardó al crear el comercio).',{secret:true,ok:'Abrir',hint:'¿No tenés el código? Tocá Cancelar y pedile a otro administrador que, en Usuarios y permisos → Equipo, te quite y te vuelva a invitar: con ese código nuevo entrás por «Tengo una invitación» con tu correo y tu contraseña actual. Tus datos no se pierden. Con «Ingreso sólo con Google» activado, alcanza con tu Gmail.'});
+    if(!code)throw new Error('Ingreso cancelado.');
+    const rr=await sel('llaves_recuperacion?select=kdf,wrap&comercio_id=eq.'+cid);
+    if(!rr.length)throw new Error('Sólo el administrador puede usar el código de recuperación. Pedile que te quite y te vuelva a invitar.');
+    try{raw=await unwrapDek(rr[0],normCode(code));}catch(e2){throw new Error('El código de recuperación no es correcto.');}
+    const nw=await wrapDek(raw,pass);await patch(nw);cl.dekWrap=nw;}}
+ }
+ cl.dekRaw=raw;cl.dek=await dekKey(raw);
+ if(opts.remember&&!offline)await googleRemember(cl.uid,raw);
+ const m2=cl.meta&&cl.meta.comercio&&cl.meta.comercio.id===cl.comercio.id&&cl.meta.uid===cl.uid?cl.meta:null;
+ cl.fp=m2?(m2.fp||{}):{};cl.base=m2?(m2.base||{}):{};cl.outStock=m2?(m2.outStock||[]):[];cl.cursor=m2?(m2.cursor||null):null;cl.rejects=m2?(m2.rejects||[]):[];cl.pubHash=m2?(m2.pubHash||''):'';
+ let st=await cloudLoadState();
+ if(!st){S=created?DEF():blankState();S.users=[];cl.fp={};cl.base={};cl.outStock=[];cl.cursor=null;if(created){S.tenant.legal=cl.comercio.nombre;S.tenant.name=cl.comercio.nombre.slice(0,24);S.customers=[];}}
+ else{S=st;S.users=[];}
+ cl.ready=true;user={id:cl.uid,name:cl.nombre,role:cl.rol};
+ if(!offline){let ok=true;for(let i=0;i<5&&ok;i++){try{ok=!(await rpc('registrar_caja',{p_comercio:cl.comercio.id,p_nro:+S.tenant.caja||1,p_disp:cl.dev,p_nombre:cl.nombre}));}catch(e){ok=false;break;}
+   if(ok){const n=await askCajaNro(+S.tenant.caja||1);if(!n){break;}S.tenant.caja=Math.min(99,Math.max(1,parseInt(n,10)||1));}}}
+ await cloudMetaSave();
+ audit('LOGIN','ingreso a la nube'+(offline?' (sin conexión)':''));
+ startTimers();
+ if(!offline){try{await cloudSync(true);}catch(e){}if(cl.rol==='admin')await ensureClubKey();}
+ await cloudPersistNow();
+ location.hash='#panel/inicio';route();}
+function startTimers(){clearInterval(cl.timer);cl.timer=setInterval(()=>cloudSync(),15000);
+ window.addEventListener('online',()=>cloudSync());document.addEventListener('visibilitychange',()=>{if(!document.hidden)cloudSync();});
+ const bump=()=>{cl.lastAct=Date.now();};['pointerdown','keydown'].forEach(ev=>document.addEventListener(ev,bump,{passive:true}));bump();
+ clearInterval(cl.idle);cl.idle=setInterval(()=>{if(cl.ready&&Date.now()-cl.lastAct>30*60000)A.logout();},30000);}
+async function cloudSync(force){if(!cl.ready||cl.busy||!CLOUD.on)return;cl.busy=true;cloudBadge();
+ try{
+  if(!cl.cursor)await pullAll();
+  await pushAll();await pullAll();
+  cl.lastOk=Date.now();cl.lastErr='';cl.online=true;
+  if(cl.rol==='admin')autoPublish();
+  if(Date.now()-(cl.lastAltas||0)>20000){cl.lastAltas=Date.now();try{await importAltas();}catch(e){}}
+  if(typeof crmImport==='function'){try{await crmImport();}catch(e){}}
+  if(typeof arcaTick==='function'){try{await arcaTick();}catch(e){}}
+  await cloudMetaSave();await cloudPersistNow();
+ }catch(e){
+  if(e.net)cl.lastErr='Sin conexión';
+  else if(e.status===403&&/no sos miembro/i.test(String(e.message))){cl.lastErr='Tu acceso fue quitado';cl.revoked=true;setTimeout(()=>{if(cl.revoked)A.logout();},800);}
+  else if(e.status===401||e.status===403&&/JWT/i.test(String(e.message))){cl.lastErr='Reconectá la nube (Nube → Reconectar)';}
+  else cl.lastErr=String(e.message||'error').slice(0,100);
+ }finally{cl.busy=false;cloudBadge();refreshIfIdle();}}
+/* si cambió algo que vino de otro equipo y nadie está escribiendo, se refresca la pantalla */
+let lastShown='';function refreshIfIdle(){try{if($('#panel').hidden||document.querySelector('#modal-root .ov'))return;const a=document.activeElement;if(a&&/INPUT|TEXTAREA|SELECT/.test(a.tagName))return;
+ if(['vender','caja'].includes(curScreen))return;const sig=cyrb(canon([S.products.length,S.sales.length,S.movs.length,S.customers.length,S.sessions.length,S.closures.length,S.products.reduce((x,p)=>x+(+p.stock||0),0)]));
+ if(sig!==lastShown){lastShown=sig;rerender();}}catch(e){}}
+A.logout=async()=>{if(!CLOUD.on){audit('LOGOUT','');user=null;location.hash='#menu';return;}
+ const was=cl.ready;if(was){audit('LOGOUT','');try{await Promise.race([cloudSync(true),new Promise(r=>setTimeout(r,4000))]);}catch(e){}await cloudPersistNow();
+  try{if(cl.ses)fetch(CLOUD.url+'/auth/v1/logout',{method:'POST',headers:{apikey:CLOUD.key,Authorization:'Bearer '+cl.ses.access}}).catch(()=>{});}catch(e){}}
+ cl.ready=false;clearInterval(cl.timer);clearInterval(cl.idle);cl.dek=null;cl.dekRaw=null;cl.ses=null;cl.revoked=false;
+ const cm=cl.comercio;await cloudMetaSave();cl.meta=await kvGet('cloud');
+ S=DEF();S.users=[];user=null;loginMode='ingresar';location.hash='#menu';route();};
+A.cloudForgot=async()=>{const email=(val('cl-em')||'').trim().toLowerCase();if(!mailOk(email))return lerr('Escribí tu correo arriba y volvé a tocar "Olvidé mi contraseña".');
+ try{await hreq('/auth/v1/recover?redirect_to='+encodeURIComponent(googleRedirectUrl()),{method:'POST',auth:false,body:{email}});}catch(e){if(e.net)return lerr(errTxt(e));}
+ lerr('Si el correo está registrado, te mandamos un enlace para elegir otra contraseña (abrilo una sola vez, en este mismo equipo). '+(googleOn?'Más fácil: tocá «Ingresar con Google» con tu Gmail.':'Si no te llega, pedile al administrador de tu comercio que te vuelva a dar acceso (Usuarios y permisos → Equipo).'));};
+A.cloudNewPass=async()=>{const p=val('cl-pw');if(p.length<10)return lerr('La contraseña necesita al menos 10 caracteres.');
+ try{cl.ses={access:cl.recoveryToken,refresh:'',exp:Date.now()+3000000};await hreq('/auth/v1/user',{method:'PUT',body:{password:p}});cl.ses=null;cl.recoveryToken=null;loginMode='ingresar';cloudLogin('Contraseña cambiada. Ingresá con la nueva.');}catch(e){lerr(errTxt(e));}};
+/* ---------- llave pública del Club (alta anónima desde el menú, cifrada de punta a punta) ---------- */
+async function ensureClubKey(){if(cl.clubPriv||!cl.dek||cl.rol!=='admin'||!cl.online||!cl.lastOk)return; // sin haber leído la nube no se crea otra llave (dejaría sin abrir las altas ya hechas)
+ const kp=await crypto.subtle.generateKey({name:'RSA-OAEP',modulusLength:2048,publicExponent:new Uint8Array([1,0,1]),hash:'SHA-256'},true,['encrypt','decrypt']);
+ const pub=await crypto.subtle.exportKey('jwk',kp.publicKey),priv=await crypto.subtle.exportKey('jwk',kp.privateKey);
+ cl.clubPriv={pub,priv:await sealJ(priv,cl.dek,'clubkey|'+cl.comercio.id),jwk:priv,new:true};try{await cloudSync(true);}catch(e){}}
+async function rsaSeal(jwkPub,obj){const pk=await crypto.subtle.importKey('jwk',jwkPub,{name:'RSA-OAEP',hash:'SHA-256'},false,['encrypt']);
+ const ak=await crypto.subtle.generateKey({name:'AES-GCM',length:256},true,['encrypt']);const iv=rnd(12);
+ const ct=new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv},ak,te.encode(JSON.stringify(obj))));
+ const k=new Uint8Array(await crypto.subtle.encrypt({name:'RSA-OAEP'},pk,await crypto.subtle.exportKey('raw',ak)));return{k:b64(k),iv:b64(iv),ct:b64(ct)};}
+async function rsaOpen(jwkPriv,box){const sk=await crypto.subtle.importKey('jwk',jwkPriv,{name:'RSA-OAEP',hash:'SHA-256'},false,['decrypt']);
+ const raw=await crypto.subtle.decrypt({name:'RSA-OAEP'},sk,unb64(box.k));const ak=await crypto.subtle.importKey('raw',raw,'AES-GCM',false,['decrypt']);
+ return JSON.parse(td.decode(await crypto.subtle.decrypt({name:'AES-GCM',iv:unb64(box.iv)},ak,unb64(box.ct))));}
+async function importAltas(){if(!cl.ready||!cl.clubPriv||!cl.clubPriv.jwk||!cl.online||importAltas.busy)return 0;
+ importAltas.busy=true;
+ try{
+ const rows=await sel(`club_altas?select=id,cifrado,creado&comercio_id=eq.${cl.comercio.id}&estado=eq.nueva&order=id&limit=100`);if(!rows.length)return 0;
+ const ok=[],bad=[],ileg=[];let undec=0,made=0,alias=0;
+ for(const r of rows){
+  let p;try{p=await rsaOpen(cl.clubPriv.jwk,r.cifrado);}catch(e){
+   /* V26.26: una alta hecha con una llave anterior del comercio nunca se va a poder abrir. Mientras es reciente (< 3 días) queda «nueva»
+      por si el administrador todavía no entró; después se archiva como rechazada (una sola vez, auditado) y deja de avisar en cada ingreso. */
+   const age=Date.now()-Date.parse(r.creado||'');if(age>3*86400000){ileg.push(r.id);bad.push(r.id);}else undec++;continue;}
+  const b=parseBirth(p.birth),w=normWA(p.wa);
+  if(!b||!w||ageOf(b)<18||String(p.name||'').trim().length<1||String(p.last||'').trim().length<1){bad.push(r.id);continue;}
+  const iso=b.y+'-'+String(b.mo).padStart(2,'0')+'-'+String(b.d).padStart(2,'0');
+  const cid=cardIdOk(p.cid)?p.cid:'',sec=(typeof p.secret==='string'&&p.secret.length>=16&&p.secret.length<=80)?p.secret:'';
+  if((cid&&custByCard(cid))||(!cid&&S.customers.some(c=>c.id==='alta'+r.id))){ok.push(r.id);continue;} // ya estaba importada
+  if(clubBlocked(w,cid)){bad.push(r.id);continue;} // el administrador eliminó o dio de baja a ese cliente: no reaparece
+  const dupC=S.customers.find(c=>c.status!=='baja'&&normWA(c.wa)===w);
+  if(dupC){
+   if(cid&&sec&&dupC.birth===iso){dupC.cards=Array.isArray(dupC.cards)?dupC.cards:[];dupC.cardSecrets=dupC.cardSecrets||{};if(!dupC.cards.includes(cid)){dupC.cards.push(cid);dupC.cardSecrets[cid]=sec;}alias++;audit('CLUB_TARJETA_NUEVA','socio '+pad4(dupC.num)+' · segunda tarjeta (otro celular)');ok.push(r.id);}
+   else if(!cid){ok.push(r.id);}
+   else{bad.push(r.id);audit('CLUB_ALTA_RECHAZADA','WhatsApp ya registrado con otro cumpleaños (alta '+r.id+')');}
+   continue;}
+  const c=custCreate({id:cid,secret:sec,name:p.name,last:p.last,birth:iso,wa:p.wa,comm:!!p.comm,dni:p.dni},'menú público');
+  if(!cid)c.id='alta'+r.id;
+  made++;ok.push(r.id);}
+ if(ok.length||bad.length)try{
+  if(ok.length)await rpc('club_altas_marcar',{p_comercio:cl.comercio.id,p_ids:ok,p_estado:'importada'});
+  if(bad.length)await rpc('club_altas_marcar',{p_comercio:cl.comercio.id,p_ids:bad,p_estado:'rechazada'});
+ }catch(e){} // si falla el aviso, la próxima vuelta las reconoce como ya importadas
+ if(ileg.length)audit('CLUB_ALTA_ILEGIBLE',ileg.length+' alta(s) del menú hechas con una llave anterior del comercio: archivadas (el cliente puede volver a anotarse desde el QR)');
+ {const k='rave.undec.'+cl.comercio.id,prev=+(LS.get(k)||0);if(undec!==prev){LS.set(k,String(undec));if(undec)audit('CLUB_ALTAS_SIN_ABRIR',undec+' alta(s) recientes del menú todavía no se pueden abrir: si en 3 días siguen así se archivan');}}
+ if(made||alias||bad.length){audit('CLUB_ALTAS_IMPORT',made+' socios nuevos, '+alias+' tarjetas nuevas de socios existentes, '+bad.length+' rechazadas');save();if(typeof pubRefresh==='function')pubRefresh();if(typeof curScreen!=='undefined'&&(curScreen==='clientes'||curScreen==='fidel'))rerender();}
+ return made+alias;
+ }finally{importAltas.busy=false;}}
+/* ---------- menú público en la nube ---------- */
+function menuContent(){const site=pubSite();
+ const cps=S.coupons.filter(cp=>cp.active&&cp.public!==false).map(cp=>({code:cp.code,type:cp.type,value:cp.value,min:cp.min||0,from:cp.from||'',to:cp.to||'',note:cp.note||'',aud:cp.aud||'todos',max:cp.maxUses||0,per:cp.perCust||0}));
+ return{site,catalog:pubCatalog(),plans:pubPlans(),coupons:cps,legal:legalPublic(),loyalty:{goal:S.loyalty.goal,reward:S.loyalty.reward},clubkey:cl.clubPriv?cl.clubPriv.pub:null};}
+async function cloudPublishMenu(manual){if(!cl.ready||cl.rol!=='admin')return{ok:false};
+ const c=menuContent();const h=sha256(canon(c));if(!manual&&h===cl.pubHash)return{ok:true,same:true};
+ const r=await rpc('publicar_menu',{p_comercio:cl.comercio.id,p_contenido:c,p_hash:h});cl.pubHash=h;cl.lastPub=Date.now();cl.pubVer=r.version;
+ cl.pubSnap={version:r.version,publicado:new Date().toISOString(),nombre:cl.comercio.nombre,contenido:JSON.parse(JSON.stringify(c))};await kvPut('pubsnap',cl.pubSnap);await cloudMetaSave();return r;}
+function autoPublish(){if(cl.lastPub&&Date.now()-cl.lastPub<30000)return;cloudPublishMenu(false).catch(e=>{if(!e.net)cl.lastErr='Menú: '+String(e.message).slice(0,80);});}
+async function loadPubSnap(){if(!CLOUD.on||!CLOUD.slug)return;
+ if(!cl.pubSnap){const c=await kvGet('pubsnap');if(c&&c.contenido)cl.pubSnap=c;}
+ try{const r=await rpc('menu_publico',{p_slug:CLOUD.slug},{auth:false});if(r&&r.contenido){const changed=!cl.pubSnap||cl.pubSnap.version!==r.version;cl.pubSnap=r;await kvPut('pubsnap',r);return changed;}}catch(e){}return false;}
+const snapC=()=>cl.pubSnap&&cl.pubSnap.contenido||null;
+async function cloudClubJoin(f){const en=()=>window.RAVE_LANG&&window.RAVE_LANG()==='en';const bad=(es,e)=>({ok:false,msg:en()?e:es});
+ const full=String(f.nombre||'').trim().replace(/\s+/g,' ');const parts=full.split(' ');
+ if(parts.length<2||full.length<3||full.length>80)return bad('Ingresá tu nombre y apellido.','Enter your first and last name.');
+ const last=parts.pop(),name=parts.join(' ');const b=parseBirth(f.cumple);if(!b)return bad('Elegí una fecha de cumpleaños válida.','Choose a valid birthday.');
+ const w=normWA(f.whatsapp);if(!w||/^(\d)\1+$/.test(w))return bad('Ingresá un WhatsApp válido.','Enter a valid WhatsApp number.');
+ const dn=normDni(f.dni);if(String(f.dni||'').trim()&&!dniOk(dn))return bad('El DNI debe tener 7 u 8 números (o dejalo vacío).','The ID number must have 7 or 8 digits (or leave it empty).');
+ if(ageOf(b)<18)return bad('El Club RAVE es sólo para mayores de 18 años.','RAVE Club is for adults (18+) only.');
+ const t=now();const recent=clubHits.filter(x=>t-x<60000);if(recent.length>=3)return bad('Demasiados intentos, probá en un minuto.','Too many attempts, try again in a minute.');
+ clubHits.length=0;recent.forEach(x=>clubHits.push(x));clubHits.push(t);
+ const key=snapC()&&snapC().clubkey;if(!key)return bad('El Club no está disponible en este momento.','The Club is not available right now.');
+  const b64u=u=>b64(u).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');const cid='k'+b64u(rnd(15)).slice(0,19),secret=b64u(rnd(24));
+ const iso=b.y+'-'+String(b.mo).padStart(2,'0')+'-'+String(b.d).padStart(2,'0'),nm=name.replace(/[<>]/g,'').slice(0,40),ls=last.replace(/[<>]/g,'').slice(0,40);
+ try{const enc=await rsaSeal(key,{name:nm,last:ls,birth:iso,wa:waFull(w),dni:dn,comm:!!f.comm,cid,secret,v:'v2',ts:t});
+  const r=await rpc('club_alta',{p_slug:CLOUD.slug,p_huella:sha256(uid()+uid()+uid()+t),p_cifrado:enc},{auth:false});
+  if(!r||!r.ok)return bad((r&&r.error)||'No pudimos registrarte, probá de nuevo.','We could not sign you up, please try again.');
+ }catch(e){return bad('No pudimos registrarte (¿hay internet?). Probá de nuevo.','We could not sign you up (is there internet?). Please try again.');}
+ LS.set('rave.card',cid);LS.set('rave.cardsec',secret);LS.set('rave.cardinfo',JSON.stringify({name:(nm+' '+ls).trim(),birth:iso}));LS.del('rave.cardest');delete cardEst[cid];try{cardMirrorSave();}catch(e){}
+ setTimeout(cardPoll,2500);setTimeout(cardPoll,9000);
+ return{ok:true,cardId:cid,msg:en()?'Welcome to the Club! Your card is below. The shop activates it in a few seconds.':'¡Bienvenido/a al Club RAVE! Tu tarjeta ya está abajo. El negocio la activa en unos segundos.'};}
+/* ---------- tarjeta del Club en el celular del cliente (nube): la clave de la tarjeta nace y vive en ese celular ---------- */
+const LS={get(k){try{return localStorage.getItem(k)||'';}catch(e){return '';}},set(k,v){try{localStorage.setItem(k,v);}catch(e){}},del(k){try{localStorage.removeItem(k);}catch(e){}}};
+const cardEst={};
+function cardEstGet(id){if(cardEst[id])return cardEst[id];try{const o=JSON.parse(LS.get('rave.cardest')||'null');if(o&&o.id===id){cardEst[id]={socio:!!o.socio,num:o.num,sellos:o.sellos,saldo:o.saldo===undefined?null:o.saldo};return cardEst[id];}}catch(e){}return {socio:false};}
+function cardFrameRefresh(){try{const fr=document.getElementById('pubframe');if(fr&&fr.contentWindow&&fr.contentWindow.RAVE_CARD_REFRESH)fr.contentWindow.RAVE_CARD_REFRESH();}catch(e){}}
+async function cardPoll(){const id=LS.get('rave.card');if(!CLOUD.on||!id||!CLOUD.slug||document.hidden)return;
+ try{const r=await rpc('club_estado',{p_slug:CLOUD.slug,p_cid:id},{auth:false});
+  if(r&&r.ok){const e={socio:!!r.socio,num:r.num,sellos:+r.sellos||0,saldo:(r.saldo===undefined||r.saldo===null)?null:Math.round(+r.saldo)||0};const old=JSON.stringify(cardEstGet(id));cardEst[id]=e;LS.set('rave.cardest',JSON.stringify(Object.assign({id},e)));if(JSON.stringify(e)!==old)cardFrameRefresh();}}catch(e){}}
+if(CLOUD.on&&typeof setInterval==='function')setInterval(cardPoll,15000);
+function pubCloudCard(id){if(!id||id!==LS.get('rave.card')||!LS.get('rave.cardsec'))return null;
+ let info={};try{info=JSON.parse(LS.get('rave.cardinfo')||'{}');}catch(e){}
+ const e=cardEstGet(id),lo=(snapC()&&snapC().loyalty)||{goal:S.loyalty.goal,reward:S.loyalty.reward};const g=lo.goal||8,st=e.socio?Math.max(0,+e.sellos||0):0;
+ return{name:(info.name||'').split(' ')[0]||'',num:e.socio?pad4(+e.num):'—',stamps:Math.min(st,g),goal:g,rewards:Math.floor(st/g),rewardText:lo.reward||'',member:null,pending:!e.socio,saldo:e.socio&&e.saldo!==null&&e.saldo!==undefined?e.saldo:null};}
+function pubCloudCode(id){const sec=LS.get('rave.cardsec');if(!id||!sec||id!==LS.get('rave.card'))return null;
+ const w=otpWin(now()),otp=otpFor({id,secret:sec},w,id),e=cardEstGet(id);
+ return{socio:e.socio?pad4(+e.num):'----',otp,secs:Math.max(1,Math.ceil(((w+1)*OTP_MS-now())/1000)),qr:QR.svg('RAVE2|'+id+'|'+otp,4,2),pending:!e.socio};}
+function cloudApiWrap(local){if(!CLOUD.on)return local;
+ const pub=()=>!cl.ready;
+ const pick=(l,p)=>(...a)=>pub()?p(...a):l(...a);
+ const today=()=>dkey(now());
+ const cpOk=cp=>(!cp.from||today()>=cp.from)&&(!cp.to||today()<=cp.to);
+ return{
+  site:pick(local.site,()=>{const c=snapC();return c?c.site:{title:'',sub:{es:'',en:''},pitch:{es:'',en:''},promo:{on:false,es:'',en:''},address:'',social:[],icons:{},footer:{es:'',en:''},wa:'',alcFrom:7,alcTo:24,hideTeamBtn:false,clubOn:false,wifi:{on:false}};}),
+  catalog:pick(local.catalog,()=>{const c=snapC();return c?c.catalog:{secciones:[],productos:[]};}),
+  clubJoin:pick(local.clubJoin,cloudClubJoin),
+  card:id=>pub()?pubCloudCard(id):(local.card(id)||pubCloudCard(id)),cardCode:id=>pub()?pubCloudCode(id):(local.cardCode(id)||pubCloudCode(id)),cardLogin:pick(local.cardLogin,()=>null),cardPortable:id=>local.cardPortable(id),brand:()=>local.brand(),qr:t=>local.qr(t),wallet:(id,k)=>pub()?{mode:'pending'}:local.wallet(id,k),walletMode:()=>pub()?'pending':(local.walletMode?local.walletMode():'pending'),canRecover:()=>!pub(),
+  coupons:(id)=>{if(!pub())return local.coupons(id);const c=snapC();const me=id&&id===LS.get('rave.card')?cardEstGet(id):null;let bw=false;try{const inf=JSON.parse(LS.get('rave.cardinfo')||'{}');bw=isBirthWeek({birth:inf.birth});}catch(e){}
+   return((c&&c.coupons)||[]).filter(cp=>cpOk(cp)&&((cp.aud||'todos')==='todos'||(cp.aud==='club'&&me&&me.socio)||(cp.aud==='cumple'&&me&&me.socio&&bw))).map(cp=>({code:cp.code,desc:cp.note||(cp.type==='pct'?cp.value+' % de descuento':money(cp.value)+' de descuento'),cond:(cp.min?'Compra mínima '+money(cp.min)+' · ':'')+(cp.aud==='club'?'Sólo socios del Club · ':cp.aud==='cumple'?'Semana del cumpleaños · ':'')+'Excluye tabaco'}));},
+  couponInfo:pick(local.couponInfo,(code,total)=>{code=String(code||'').trim().toUpperCase();const c=snapC();const cp=((c&&c.coupons)||[]).find(x=>x.code===code);
+   if(!cp)return{ok:false,msg:'Ese cupón no existe o no está activo.',msgEn:'That coupon does not exist or is not active.'};
+   if(!cpOk(cp))return{ok:false,msg:'El cupón no está vigente.',msgEn:'The coupon is not valid today.'};
+   if(total<(cp.min||0))return{ok:false,msg:'Compra mínima '+money(cp.min)+'.',msgEn:'Minimum purchase '+money(cp.min)+'.'};
+   const d=cp.type==='pct'?cp.value+' % de descuento':money(cp.value)+' de descuento';const dd=cpDisc(cp,total);
+   return{ok:true,code:cp.code,desc:d+' (se valida en el mostrador)',descEn:(cp.type==='pct'?cp.value+' % off':money(cp.value)+' off')+' (validated at the counter)',total:Math.max(0,total-dd)};}),
+  plans:pick(local.plans,()=>{const c=snapC();return(c&&c.plans)||[];}),
+  orderRequest:pick(local.orderRequest,o=>{rpc('menu_evento',{p_slug:CLOUD.slug,p_tipo:'pedido',p_items:(o.items||[]).length,p_total:Math.round((+o.total||0)*100)},{auth:false}).catch(()=>{});}),
+  legal:pick(local.legal,()=>{const c=snapC();return(c&&c.legal)||[];}),
+  logArrep:pick(local.logArrep,()=>{rpc('menu_evento',{p_slug:CLOUD.slug,p_tipo:'arrepentimiento'},{auth:false}).catch(()=>{});}),
+  openPanel:local.openPanel};}
+/* ---- Equipo: invitar, roles y quitar (se usa en Nube y en Usuarios y permisos) ---- */
+function teamCardHtml(){return `<div class="card" id="team-card" style="margin-top:1rem"><h3>Equipo (personas con acceso)</h3><div id="nb-team" class="sm mut">Cargando…</div>
+ <h4>Invitar a una persona</h4><div class="grid g2"><div><label for="nb-em">Correo</label><input id="nb-em" type="email"></div><div><label for="nb-nm">Nombre</label><input id="nb-nm" maxlength="60"></div><div><label for="nb-rl">Rol</label><select id="nb-rl"><option value="mostrador">Mostrador</option><option value="supervisor">Supervisor</option><option value="operador">Operador</option><option value="admin">Administrador</option></select></div></div>
+ <div class="row" style="margin-top:.5rem"><button class="btn gold" data-act="nbInvite">Generar código de acceso</button></div>
+ <p class="sm mut">La persona entra a "Tengo una invitación", escribe ese correo, elige su contraseña y pega el código. <b>Si alguien olvida su contraseña, te la pide a vos</b> (no al soporte del desarrollador): que pruebe «Olvidé mi contraseña»; si no puede, quitala de esta lista y volvé a invitarla con un código nuevo.</p>
+ <h4>Código de recuperación</h4><p class="sm">Permite volver a abrir los datos si el administrador pierde su contraseña. Si lo perdiste, generá uno nuevo (el anterior deja de servir).</p><button class="btn" data-act="nbRecov">Generar código nuevo</button></div>`;}
+async function teamInit(){if(!CLOUD.on||cl.rol!=='admin')return;const box=document.getElementById('nb-team');if(!box)return;
+  try{const [m,inv]=await Promise.all([sel(`miembros?select=usuario_id,rol,nombre,email&comercio_id=eq.${cl.comercio.id}&order=creado`),rpc('invitaciones_de',{p_comercio:cl.comercio.id})]);
+   box.innerHTML=`<div class="tw"><table><thead><tr><th>Nombre</th><th>Correo</th><th>Rol</th><th></th></tr></thead><tbody>${m.map(x=>`<tr><td>${esc(x.nombre||'')}</td><td>${esc(x.email||'')}</td><td>${x.usuario_id===cl.uid?esc(ROLES_LBL[x.rol]):`<select data-act-change="nbRole" class="nb-role" data-u="${esc(x.usuario_id)}">${Object.keys(ROLES_LBL).map(r=>`<option value="${r}" ${r===x.rol?'selected':''}>${ROLES_LBL[r]}</option>`).join('')}</select>`}</td><td>${x.usuario_id===cl.uid?'(vos)':`<button class="btn sm red" data-act="nbDel" data-u="${esc(x.usuario_id)}" data-n="${esc(x.nombre||x.email||'')}">Quitar</button>`}</td></tr>`).join('')}</tbody></table></div>
+   ${inv.length?`<p class="sm"><b>Invitaciones pendientes:</b> ${inv.map(i=>esc(i.email)+' ('+esc(ROLES_LBL[i.rol]||i.rol)+')').join(', ')}</p>`:''}`;
+   box.querySelectorAll('.nb-role').forEach(s=>s.addEventListener('change',async()=>{try{await rpc('cambiar_rol',{p_comercio:cl.comercio.id,p_usuario:s.dataset.u,p_rol:s.value});audit('EQUIPO_ROL',s.value);toast('Rol cambiado');}catch(e){toast(errTxt(e),1);rerender();}}));
+  }catch(e){box.textContent='No se pudo cargar el equipo: '+errTxt(e);}}
+if(CLOUD.on){INV_HOOK.online=()=>!!(cl.ready&&cl.online);INV_HOOK.preview=async ids=>{const r=await rpc('inventario_vista_previa_borrado',{p_comercio:cl.comercio.id,p_ids:ids});return Array.isArray(r)?r:[];};}
+if(CLOUD.on){UI_HOOK.usersCard=()=>cl.rol==='admin'?teamCardHtml()+custodiaCardHtml():'<div class="card" style="margin-top:1rem"><h3>Equipo</h3><p class="sm mut">Sólo el administrador puede invitar o quitar personas.</p></div>';UI_HOOK.usersAfter=()=>{teamInit();custodiaPaint();};}
+/* ---------- pantalla "Nube" ---------- */
+const ROLES_LBL={admin:'Administrador',supervisor:'Supervisor',mostrador:'Mostrador',operador:'Operador'};
+reg('nube','Nube','globe','config',()=>{
+ if(!CLOUD.on)return `<h1>Nube</h1><div class="card"><span class="tag warn">Pendiente de configuración</span><p>Esta copia funciona <b>sólo en este equipo</b>. Para sincronizar varios equipos y publicar el menú para el público, Vincular Business carga en el archivo la dirección del proyecto de Supabase y su clave <b>publicable</b> (nunca una clave secreta).</p></div>`;
+ let n=0;try{n=pendingCount();}catch(e){}
+ const adm=cl.rol==='admin';
+ return `<div class="row"><h1 class="sp">Nube</h1><button class="btn gold" data-act="nbSync">Sincronizar ahora</button></div>
+ <div class="grid g2"><div class="card"><h3>Estado</h3><table><tbody>
+ <tr><td>Comercio</td><td><b>${esc(cl.comercio.nombre)}</b> · dirección corta <code>${esc(cl.slug)}</code></td></tr>
+ ${CLOUD.slug&&CLOUD.slug!==cl.slug?`<tr><td colspan="2"><div class="errbox">La dirección corta de este archivo (<code>${esc(CLOUD.slug)}</code>) no coincide con la del comercio (<code>${esc(cl.slug)}</code>): el público no verá el menú. Vincular Business tiene que corregir el archivo.</div></td></tr>`:''}
+ <tr><td>Cuenta</td><td>${esc(cl.email)} · ${esc(ROLES_LBL[cl.rol]||cl.rol)}</td></tr>
+ <tr><td>Este equipo</td><td>Caja ${S.tenant.caja}</td></tr>
+ <tr><td>Conexión</td><td><span class="tag ${cl.online&&!cl.lastErr?'ok':'warn'}">${cl.lastErr?esc(cl.lastErr):cl.online?'Conectado':'Sin conexión'}</span></td></tr>
+ <tr><td>Última sincronización</td><td>${cl.lastOk?fmtDT(cl.lastOk):'—'}</td></tr>
+ <tr><td>Por subir</td><td>${n} cambios</td></tr></tbody></table>
+ <div class="row" style="margin-top:.6rem">${cl.ses?'':'<button class="btn" data-act="nbReauth">Reconectar</button>'}<button class="btn" data-act="nbPass">Cambiar mi contraseña</button><button class="btn" data-act="googleForget" title="Si entraste con Google y marcaste «Recordar en este equipo»">Olvidar este equipo (Google)</button><button class="btn" data-act="logout">Cerrar sesión</button></div><p class="sm mut">Ingreso con Google: se usa la cuenta de Gmail asociada a tu usuario. La primera vez en cada equipo se pide la clave del sistema para abrir los datos cifrados.</p>
+ <p class="sm mut">Si no hay internet seguís vendiendo: todo se guarda cifrado en este equipo y se sube solo cuando vuelve la conexión.</p>
+ ${cl.rejects.length?`<details><summary class="sm">Cambios que el servidor no aceptó (${cl.rejects.length})</summary>${cl.rejects.slice(-10).map(r=>`<p class="sm">${fmtDT(r.ts)} · ${esc(r.key)} — ${esc(r.m)}</p>`).join('')}</details>`:''}</div>
+ <div class="card"><h3>Menú público</h3><p class="sm">Dirección que ve el público (código QR): <code>${esc(location.href.split('#')[0])}</code></p>
+ <p class="sm">Versión publicada: <b>${cl.pubSnap?'v'+cl.pubSnap.version:'ninguna'}</b>${cl.pubSnap?' · '+fmtDT(Date.parse(cl.pubSnap.publicado)):''}. El catálogo se actualiza solo cuando cambian productos o precios.</p>
+ ${adm?'<div class="row"><button class="btn" data-act="nbPublish">Publicar ahora</button></div>':'<p class="sm mut">Sólo el administrador publica el menú.</p>'}
+ <div class="row" style="margin-top:.4rem"><button class="btn" data-act="nbAltas">Traer altas del Club</button></div>
+ <p class="sm mut">Las altas del Club llegan cifradas: sólo este comercio las puede abrir.</p></div></div>
+ ${adm?cajasCardHtml()+teamCardHtml()+custodiaCardHtml():''}`;},
+ ()=>{teamInit();custodiaPaint();cajasInit();},'Sistema');
+/* V26.47 · números de caja reservados por cada equipo; el administrador libera los de equipos que ya no se usan (19-liberar-caja.sql) */
+function cajasCardHtml(){return`<div class="card" id="cajas-card" style="margin-top:1rem"><h3>Números de caja de los equipos</h3>
+ <p class="sm mut">Cada navegador o equipo reserva su número de caja para que los tickets no se repitan. Si un equipo ya no se usa (otra computadora, otro navegador o datos borrados), liberá su número. Liberarlo no borra ventas ni cierres.</p>
+ <div id="nb-cajas" class="sm mut">Cargando…</div></div>`;}
+async function cajasInit(){const box=document.getElementById('nb-cajas');if(!box||!CLOUD.on||cl.rol!=='admin')return;
+ let L=[];try{L=await sel('cajas?comercio_id=eq.'+cl.comercio.id+'&select=nro,nombre,visto,dispositivo&order=nro')||[];}catch(e){box.textContent='No se pudo leer: '+errTxt(e);return;}
+ if(!L.length){box.textContent='Sin números reservados.';return;}
+ box.className='';box.innerHTML=`<div class="tw"><table data-nosort><thead><tr><th>Caja</th><th>Equipo de</th><th>Último ingreso</th><th></th></tr></thead><tbody>${L.map(x=>{const mine=x.dispositivo===cl.dev;
+  return`<tr><td><b>${+x.nro}</b></td><td>${esc(x.nombre||'—')}${mine?' <span class="tag ok">este equipo</span>':''}</td><td>${x.visto?esc(fmtDT(Date.parse(x.visto))):'—'}</td><td>${mine?'':`<button class="btn sm" data-act="nbCajaLib" data-id="${+x.nro}">Liberar</button>`}</td></tr>`;}).join('')}</tbody></table></div>`;}
+A.nbCajaLib=el=>{const n=+el.dataset.id;if(!(n>=1))return;modal('Liberar la caja '+n,`<p>El número <b>${n}</b> queda libre para otro equipo. Hacelo sólo si el equipo que lo usaba <b>ya no se usa</b>: si dos equipos vendieran con el mismo número, los tickets se repetirían.</p><p class="sm mut">No se borran ventas, cajas ni cierres.</p>`,
+ {okText:'Liberar',onOk:async w=>{try{const ok=await rpc('liberar_caja',{p_comercio:cl.comercio.id,p_nro:n,p_disp:cl.dev});audit('CAJA_LIBERADA','número de caja '+n+(ok?'':' (ya estaba libre)'));toast(ok?'Caja '+n+' liberada':'Ese número ya estaba libre');cajasInit();}
+  catch(e){const m=errTxt(e);toast(/liberar_caja|PGRST202|404|Could not find/i.test(m)?'Falta instalar en la nube la función para liberar números de caja (19-liberar-caja.sql). Avisale a Vincular Business.':m,1);}}});};
+A.nbSync=async()=>{await cloudSync(true);await importAltas().catch(()=>{});toast(cl.lastErr?cl.lastErr:'Sincronizado',!!cl.lastErr);rerender();};
+A.nbPublish=async()=>{try{const r=await cloudPublishMenu(true);audit('MENU_NUBE','publicado v'+(r.version||'?'));toast('Menú publicado v'+r.version);rerender();}catch(e){toast(errTxt(e),1);}};
+A.nbAltas=async()=>{try{const n=await importAltas();toast(n?n+' altas nuevas del Club':'No hay altas nuevas');rerender();}catch(e){toast(errTxt(e),1);}};
+A.nbReauth=async()=>{const p=await askText('Reconectar','Escribí tu contraseña',{secret:true,ok:'Reconectar'});if(!p)return;try{await signIn(cl.email,p);await cloudMetaSave();await cloudSync(true);toast('Reconectado');rerender();}catch(e){toast(errTxt(e),1);}};
+A.nbPass=async()=>{const p=await askText('Cambiar contraseña','Contraseña nueva (mínimo 10 caracteres)',{secret:true,ok:'Cambiar'});if(!p)return;if(p.length<10)return toast('Mínimo 10 caracteres',1);
+ try{await hreq('/auth/v1/user',{method:'PUT',body:{password:p}});const nw=await wrapDek(cl.dekRaw,p);
+  await hreq(`/rest/v1/llaves?comercio_id=eq.${cl.comercio.id}&usuario_id=eq.${cl.uid}`,{method:'PATCH',body:{kdf:nw.kdf,wrap:nw.wrap,temporal:false,actualizado:new Date().toISOString()},headers:{Prefer:'return=minimal'}});
+  cl.dekWrap=nw;await cloudMetaSave();audit('CAMBIO_CLAVE','contraseña propia');toast('Contraseña cambiada');}catch(e){toast(errTxt(e),1);}};
+A.nbInvite=async()=>{const email=val('nb-em').trim().toLowerCase(),nm=val('nb-nm').trim(),rol=val('nb-rl');if(!mailOk(email))return toast('Correo inválido',1);
+ const code=genCode(12,4);try{const w=await wrapDek(cl.dekRaw,normCode(code));
+  await rpc('invitar_miembro',{p_comercio:cl.comercio.id,p_email:email,p_rol:rol,p_nombre:nm,p_huella:sha256(normCode(code)),p_llave:{kdf:w.kdf,wrap:w.wrap}});
+  audit('EQUIPO_INVITAR',email+' · '+rol);await showSecret('Código de acceso para '+(nm||email),code,'Pasáselo a la persona por un canal seguro (en persona o WhatsApp). Vale 14 días y se usa una sola vez. Se muestra <b>una sola vez</b>.','Hola'+(nm?' '+nm:'')+'! Te invité al sistema de '+cl.comercio.nombre+'. Entrá a '+location.href.split('#')[0]+' → "Acceso del equipo" → "Tengo una invitación". Tu correo: '+email+' · Código de acceso: '+code+' (vale 14 días, se usa una sola vez). Elegí una contraseña de 10 caracteres o más.');rerender();}
+ catch(e){toast(errTxt(e),1);}};
+A.nbDel=el=>confirmBox('Quitar del equipo','¿Quitar a '+esc(el.dataset.n)+'? Pierde el acceso en todos los equipos.',async()=>{try{await rpc('quitar_miembro',{p_comercio:cl.comercio.id,p_usuario:el.dataset.u});audit('EQUIPO_QUITAR',el.dataset.n);toast('Quitado');rerender();}catch(e){toast(errTxt(e),1);}},'Quitar');
+A.nbRecov=()=>confirmBox('Código de recuperación','Se genera uno nuevo y el anterior deja de servir. ¿Seguimos?',async()=>{try{const code=genCode(20,5);const w=await wrapDek(cl.dekRaw,normCode(code));
+ await hreq('/rest/v1/llaves_recuperacion?comercio_id=eq.'+cl.comercio.id,{method:'PATCH',body:{kdf:w.kdf,wrap:w.wrap,creado:new Date().toISOString()},headers:{Prefer:'return=minimal'}});audit('RECUPERACION_NUEVA','código regenerado');
+ await showSecret('Código de recuperación',code,'Anotalo y guardalo. Reemplaza al anterior.');}catch(e){toast(errTxt(e),1);}});
+/* número de caja: en la nube cada equipo reserva el suyo */
+const _cfgSaveLocal=A.cfgSave;
+A.cfgSave=async el=>{if(CLOUD.on&&cl.ready){const c=parseNum(val('cf-c'));if(c>=1&&c!==S.tenant.caja){try{const ok=await rpc('registrar_caja',{p_comercio:cl.comercio.id,p_nro:c,p_disp:cl.dev,p_nombre:cl.nombre});if(!ok)return toast('Ese número de caja ya lo usa otro equipo',1);}catch(e){return toast(errTxt(e),1);}}}return _cfgSaveLocal(el);};
+
+/* ===== V26.30 · Ingresar con Google (Supabase Auth, OAuth 2.0 con PKCE) =====
+   Google sólo prueba QUIÉN sos (la cuenta de Gmail asociada al miembro). Los datos siguen cifrados con la llave del comercio:
+   la primera vez en cada equipo se pide la clave del sistema (la contraseña de siempre) para abrirla; con «Recordar en este equipo»
+   la llave queda guardada envuelta con una clave del navegador NO exportable (sólo sirve en este equipo y para esta cuenta).
+   Requiere: proveedor Google activado en Supabase (Authentication → Providers) y esta dirección en las URL de redirección. */
+const b64u=u=>btoa(String.fromCharCode(...u)).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+/* el botón aparece sólo si el proveedor Google está activado en Supabase (GET /auth/v1/settings, público) */
+let googleOn=null;
+async function googleCheck(){if(googleOn!==null||!CLOUD.on)return;googleOn=false;try{const r=await fetch(CLOUD.url+'/auth/v1/settings',{headers:{apikey:CLOUD.key}});const j=await r.json();googleOn=!!(j&&j.external&&j.external.google);}catch(e){googleOn=null;}
+ const lb=$('#login label[for=cl-em]');if(googleOn&&loginMode==='ingresar'&&lb&&!$('#login [data-act=googleGo]'))lb.insertAdjacentHTML('beforebegin',googleBtnHtml());}
+function googleBtnHtml(){if(!googleOn){googleCheck();return '';}return `<button type="button" class="btn" data-act="googleGo" style="width:100%;gap:.6rem;margin:.3rem 0 .2rem"><svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg> Ingresar con Google</button><p class="sm mut" style="text-align:center;margin:.2rem 0 .4rem">Con la cuenta de Gmail asociada a tu usuario · o con correo y contraseña:</p>`;}
+function googleRedirectUrl(){return location.origin+location.pathname;}
+A.googleGo=async()=>{if(!CLOUD.on)return;lerr('');
+ try{const v=b64u(rnd(48));const ch=b64u(new Uint8Array(await crypto.subtle.digest('SHA-256',te.encode(v))));const st=b64u(rnd(16));
+  const rec=JSON.stringify({v,st,ts:Date.now()});try{sessionStorage.setItem('rave.pkce',rec);}catch(e){}try{localStorage.setItem('rave.pkce',rec);}catch(e){}
+  const q=new URLSearchParams({provider:'google',redirect_to:googleRedirectUrl()+'?gs='+st,code_challenge:ch,code_challenge_method:'s256'});
+  location.assign(CLOUD.url+'/auth/v1/authorize?'+q.toString());}catch(e){lerr('No se pudo iniciar el ingreso con Google.');}};
+function googleReturnParams(){try{const u=new URLSearchParams(location.search);const h=new URLSearchParams(String(location.hash||'').replace(/^#/,''));
+  const code=u.get('code'),err=u.get('error_description')||u.get('error')||h.get('error_description'),ec=h.get('error_code')||u.get('error_code')||'';if(!code&&!err)return null;
+  history.replaceState(null,'',location.pathname+'#acceso');return{code,err,ec,mail:!!(h.get('error_code')||h.get('error')),gs:u.get('gs')||''};}catch(e){return null;}}
+async function googleReturn(g){let rec=null;try{rec=JSON.parse(sessionStorage.getItem('rave.pkce')||localStorage.getItem('rave.pkce')||'null');}catch(e){}
+ try{sessionStorage.removeItem('rave.pkce');localStorage.removeItem('rave.pkce');}catch(e){}
+ const fail=m=>{cl.ses=null;loginMode='ingresar';cloudLogin(m);};
+ if(g.err){if(g.ec==='otp_expired'||/expired|invalid/i.test(g.err))return fail('El enlace del correo venció o ya se usó (sirve una sola vez y por poco tiempo). '+(googleOn?'Lo más fácil: «Ingresar con Google» con tu Gmail.':'Pedí uno nuevo con «Olvidé mi contraseña».'));
+  return fail((g.mail?'No se pudo completar: ':'Google no completó el ingreso: ')+String(g.err).slice(0,140));}
+ if(!rec||!rec.v||Date.now()-rec.ts>15*60000||(rec.st&&g.gs!==rec.st))return fail('El ingreso con Google venció o no empezó en este equipo. Probá de nuevo.');
+ cloudLogin('Ingresando con Google…');
+ try{const j=await hreq('/auth/v1/token?grant_type=pkce',{method:'POST',auth:false,body:{auth_code:g.code,code_verifier:rec.v}});setSes(j);
+  const email=String((j.user&&j.user.email)||'').toLowerCase();if(!email)return fail('Google no devolvió el correo de la cuenta.');
+  let raw=null;try{raw=await googleRecall(cl.uid);}catch(e){raw=null;}
+  let pass='',remember=false;
+  if(!raw){const k=await custodiaAbrir(j.user);if(k){raw=k;remember=true;}}
+  if(!raw){const r=await googleAskKey(email);if(!r)return fail('Ingreso cancelado.');pass=r.pass;remember=r.remember;}
+  await cloudSignInFlow(email,pass,{already:true,rawDek:raw,remember,google:true});audit('LOGIN_GOOGLE','ingreso con Google');
+ }catch(e){const m=errTxt(e);fail(/pertenece a ning/.test(m)?'La cuenta de Google que elegiste no está asociada a este comercio. Usá el mismo Gmail con el que te invitaron (o ingresá con correo y contraseña).':(/incorrect|no es correcto|operation-specific|OperationError/i.test(m)?'La clave del sistema no es correcta.':m));}}
+function googleAskKey(email){return new Promise(res=>{const w=modal('Abrir los datos del comercio',`<p class="sm">Entraste con Google como <b>${esc(email)}</b>. Los datos del comercio están <b>cifrados</b>: la primera vez en este equipo escribí tu <b>clave del sistema</b> (la misma contraseña de «Acceso del equipo»).</p>
+  <label for="gk-p">Clave del sistema</label><input id="gk-p" type="password" autocomplete="current-password">
+  <label class="chk"><input type="checkbox" id="gk-r" checked> Recordar en este equipo (la próxima vez alcanza con Google). No lo marques en una computadora compartida.</label>`,
+  {okText:'Abrir',onOk:w2=>{const p=val('gk-p');if(!p){w2._err('Escribí la clave.');return false;}res({pass:p,remember:$('#gk-r',w2).checked});}});
+ w.addEventListener('click',e=>{if(e.target.closest('[data-m="x"]'))res(null);});});}
+async function googleRemember(uid,raw){try{const key=await crypto.subtle.generateKey({name:'AES-GCM',length:256},false,['encrypt','decrypt']);const iv=rnd(12);
+  const ct=new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv,additionalData:te.encode('gdev|'+uid)},key,raw));await kvPut('gdev:'+uid,{key,iv:b64(iv),ct:b64(ct),ts:Date.now()});}catch(e){}}
+async function googleRecall(uid){const r=await kvGet('gdev:'+uid);if(!r||!r.key)return null;
+ return new Uint8Array(await crypto.subtle.decrypt({name:'AES-GCM',iv:unb64(r.iv),additionalData:te.encode('gdev|'+uid)},r.key,unb64(r.ct)));}
+A.googleForget=async()=>{if(!cl.uid)return;await kvDel('gdev:'+cl.uid);audit('GOOGLE_OLVIDAR_EQUIPO','');toast('Listo: la próxima vez con Google se va a pedir la clave del sistema.');};
+
+/* ===== V26.31 · Ingreso SÓLO con Google: custodia de la llave en el servidor (opcional, lo activa el administrador) =====
+   Con la custodia activa, quien entra con su Gmail recibe la llave del comercio desde la función «llave» (sin clave del sistema).
+   Compromiso declarado: la llave queda guardada en la nube envuelta con un secreto del servidor; una copia de la base sola no la abre,
+   pero quien controle el proyecto de Supabase podría. Sin custodia, el cifrado sigue siendo sólo con la clave de cada persona. */
+const llaveFn=(accion,extra)=>hreq('/functions/v1/llave',{method:'POST',fn:true,body:Object.assign({accion,comercio:cl.comercio?cl.comercio.id:''},extra||{})});
+async function custodiaAbrir(u){try{const mem=await cloudFetchMember();if(!mem)return null;const cid=mem.comercios.id;
+  const j=await hreq('/functions/v1/llave',{method:'POST',fn:true,body:{accion:'abrir',comercio:cid}});if(j&&j.dek){const raw=unb64(j.dek);return raw.length===32?raw:null;}}catch(e){}return null;}
+function custodiaCardHtml(){if(cl.rol!=='admin')return '';return `<div class="card" id="cust-card" style="margin-top:1rem"><h3>Ingreso sólo con Google</h3>
+ <p class="sm">Si lo activás, cada persona del equipo entra con <b>su cuenta de Gmail</b> en cualquier equipo, <b>sin clave del sistema</b>, y recuperar el acceso es tan fácil como recuperar su cuenta de Google.</p>
+ <p class="sm mut">Cómo funciona: la llave que cifra los datos de clientes y empleados se guarda en la nube envuelta con un secreto del servidor. Una copia robada de la base no alcanza para abrirla; quien controle el proyecto de Supabase sí podría. Si no lo activás, el cifrado sigue siendo sólo con la clave de cada persona (más privado, pero si se olvida la clave hace falta el código de recuperación).</p>
+ <div id="cust-st" class="sm">Consultando…</div><div class="row" style="margin-top:.5rem"><button class="btn gold" data-act="custOn">Activar ingreso sólo con Google</button><button class="btn" data-act="custOff">Desactivar</button></div></div>`;}
+async function custodiaPaint(){const el=$('#cust-st');if(!el)return;try{const j=await llaveFn('estado');el.innerHTML=j.activa?`<span class="tag ok">Activado</span> desde ${esc(fmtDT(Date.parse(j.desde)))}`:(j.servidor?'<span class="tag">Desactivado</span>':'<span class="tag warn">Falta configurar la función «llave» en el servidor</span>');}
+ catch(e){el.innerHTML='<span class="tag warn">No disponible: falta desplegar la función «llave» en la nube</span>';}}
+A.custOn=()=>confirmBox('Activar ingreso sólo con Google','Cada persona del equipo va a poder entrar con su Gmail sin la clave del sistema. La llave de los datos queda guardada en la nube envuelta con un secreto del servidor. ¿Activar?',async()=>{try{await llaveFn('guardar',{dek:b64(cl.dekRaw)});audit('CUSTODIA_ACTIVADA','ingreso sólo con Google');toast('Ingreso sólo con Google activado');custodiaPaint();}catch(e){toast(errTxt(e),1);}});
+A.custOff=()=>confirmBox('Desactivar ingreso sólo con Google','Se borra la copia de la llave de la nube. Para entrar con Google en un equipo nuevo se va a pedir la clave del sistema. ¿Desactivar?',async()=>{try{await llaveFn('borrar');audit('CUSTODIA_DESACTIVADA','');toast('Desactivado');custodiaPaint();}catch(e){toast(errTxt(e),1);}});

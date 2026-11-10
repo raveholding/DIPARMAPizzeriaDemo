@@ -1,51 +1,54 @@
-# Sistema RAVE · demo para Di Parma Pizzería
+# Di Parma Pizzería de masa madre · Sistema VB (demo)
 
-Demo de evaluación de **Sistema RAVE V26.54** (VINCULAR BUSINESS) adaptada a **Di Parma Pizzería de masa madre** (Salta).
-Un solo archivo (`index.html`): carta pública adelante y panel de gestión en `#acceso`.
+Demo de evaluación del **Sistema Vincular Business V26.65** (la misma base que Almacén RAVE, esqueleto V27.2) con la **capa de pizzería** de Di Parma (Salta).
+Un solo archivo (`index.html`): carta pública adelante y panel del equipo en `#acceso`.
+
+**Demo en línea:** https://raveholding.github.io/DIPARMAPizzeriaDemo/
 
 - Carta pública (retiro y delivery): `/`
 - Carta de una mesa, la que abre el QR o el tag NFC: `/?mesa=I4` (mesas `I1`–`I10`, exterior `E1`–`E3`, barra `B1`–`B5`)
 - Acceso del equipo: `/#acceso`
-- Usuarios de prueba: ADMIN 1234 · Supervisor 1111 · Caja 0000 · Mozo Martín 2222 · Moza Sofía 3333 · Barra Joaquín 4444 · Cocina Franco 5555 · Cocina Lucía 6666
+- Usuarios de prueba: ADMIN 1234 · Supervisor 1111 · Caja 0000 · Mozo Martín 2222 · Moza Sofía 3333 · Barra Joaquín 4444 · Cocina Franco 5555 · Cocina Lucía 6666 · Portal del empleado 7777
 
-**Demo en línea:** https://raveholding.github.io/DIPARMAPizzeriaDemo/
+**Es una demo.** Carta, precios, costos, insumos, lotes de masa, socios, cupones, personal y ventas son de ejemplo. Los datos se guardan sólo en el navegador de quien la prueba y se sincronizan en vivo entre pestañas del mismo equipo (la carta de una mesa en una pestaña y el panel en otra). Las comandas de ejemplo se renuevan solas cada 14 horas o desde *Configuración → Restablecer datos de demostración*.
+**ARCA:** la factura es de demostración (CAE inventado, «sin validez fiscal»). **PedidosYa:** conexión simulada. Grabar tags NFC requiere Chrome en Android; el dictado del asistente, Chrome o Edge.
 
-**Es una demo.** Carta, precios, costos, stock, lotes de masa, socios, cupones, personal y ventas del día son de ejemplo.
-Los datos se guardan sólo en el navegador de quien la prueba y se sincronizan en vivo entre pestañas del mismo equipo (por ejemplo, la carta de una mesa en una pestaña y el panel del personal en otra). Se renuevan solos cada 14 horas o desde *Configuración → Restablecer datos de demostración*.
-**Facturación electrónica (ARCA):** al cobrar se emite una Factura C **SIMULADA** (CAE inventado, rotulado «SIN VALIDEZ FISCAL»), con contingencia si ARCA no responde y nota de crédito. En el sistema del cliente el CAE lo pide el servidor a ARCA (WSAA + WSFE) con el certificado del propio comercio.
-**PedidosYa** es una conexión simulada (pedidos de ejemplo que se sincronizan con caja y cocina). Grabar tags NFC requiere Chrome en Android. El asistente de voz usa el dictado del navegador (Chrome o Edge).
+## Qué cambió respecto de la versión anterior (V26.54)
+La demo anterior era una aplicación aparte. Ahora corre **sobre el Sistema VB completo y actualizado**, así que suma todo lo nuevo del núcleo sin copias:
+- **Diseño V27.2:** barra lateral por secciones plegables con el botón **Vender POS [F1]**, búsqueda global **Ctrl + K** (clientes, platos, pantallas; tolera errores de tipeo), **campana de avisos**, avisos con número en la barra, **tema claro/oscuro**, panel **«Hoy»** en el Resumen, ayuda de una línea en cada pantalla, modo mostrador para Caja, Mozo y Cocina.
+- **Gestión de caja completa:** tablero del turno (estado, 4 pasos del día, indicadores), cajas y sucursales, arqueo con Corte X / Corte Z sellados SHA-256, historial cerrado verificable, pagos mixtos, vuelto, Fiado / Cuenta corriente, recargos por medio.
+- **Club Di Parma completo:** clientes, sellos (QR rotativo, código, DNI, NFC), niveles por consumo, cumpleaños, ruleta y trivia, monedero y gift cards, cupones y membresías. Un solo beneficio por compra: gana el mayor.
+- **Recursos Humanos (Plan Completo, 12 legajos):** fichaje por PIN en kiosco, QR, NFC y geocerca; turnos de la noche (lunes cerrado), licencias con aprobación en niveles, nómina interna, documentos con vencimientos, reclutamiento, vacaciones, portal del empleado y avisos al personal.
+- **Atención al cliente** (CRM), **compras y proveedores** con cuenta corriente, presupuestos, mermas, importar/exportar, auditoría encadenada.
 
-## Circuito de comanda
-
-Mesa (QR/NFC) → validación del mozo → confirmación en caja → cocina acepta e ingresa el tiempo de entrega → listo → servido o despachado. Cada cambio se ve en tiempo real en el panel de cada perfil y en la carta del cliente (con cuenta regresiva). Los pedidos de la carta pública (retiro o delivery) entran directo a caja; los de PedidosYa, con la confirmación automática activa, directo a cocina.
+## Lo propio de la pizzería (sección «Salón y cocina»)
+- **Salón y barra:** mapa de mesas con estado en vivo, QR/NFC por mesa (imprimible), consumo abierto y **«Ver la carta como el cliente»** dentro del panel.
+- **Mozo:** pedidos del QR para validar, platos listos para servir, mesas que llaman o piden la cuenta, precarga en vivo de lo que arma el cliente y carga de pedidos en tres toques.
+- **Comandas:** tablero del circuito **Mesa (QR/NFC) → Mozo → Caja → Cocina → Horno → Listo → Servido**; cada perfil ve sólo sus botones.
+- **Cocina:** aceptar con tiempo de entrega (el cliente ve la cuenta regresiva), demoras en rojo, «Listo».
+- **Delivery y PedidosYa:** cadetes propios, rendición de efectivo y PedidosYa simulado (directo a cocina); al entregarse se registran como ventas.
+- **Fermentación de masa madre:** lotes de 48/72 h con temperaturas, madre «Mamma», calculadora de amasado. Cuando un lote queda listo, sus bollos **entran solos al stock**.
+- **Fichas técnicas:** cada plato es un **combo** del sistema armado con los insumos de cocina; al cobrar, Vender descuenta solos los insumos y los bollos. Costo, food cost, margen y precio sugerido.
+- **Asistente de comandas** (texto o voz, sólo personal): «Confirmar pedido mesa 4», «Mesa 2 en preparación 18 minutos», «Pedido 12 listo», «Mesa 6, una salteña con huevo frito y dos copas de vino».
+- **La cuenta de la mesa se cobra en Vender**, con todo el cobro del sistema; al confirmar, la mesa se cierra sola.
 
 ## Recorrido sugerido
+1. **Salón y barra → Ver el circuito en vivo**: recorre solo los 7 pasos de una comanda de la Mesa 6.
+2. **Ver la carta de una mesa** (Mesa 5 ya está armando un pedido): agregá una pizza individual con adicional y aclaración, y enviala.
+3. Con los perfiles **Mozo → Caja → Cocina** validá, confirmá y asigná 15′. El cliente ve la cuenta regresiva.
+4. **Salón → Mesa 7 → Cobrar en Vender**: buscá a la socia «Agustina», escribí `BIENVENIDA10` (compite con su nivel y su membresía: se aplica uno solo, el mayor), tocá «Justo» y cobrá con F12.
+5. **Gestión de caja → Arqueo / cierre**: Corte X, Corte Z y verificación del sello en el historial.
+6. **Fermentación**, **Fichas técnicas** e **Inventario** (Stock e insumos): mirá cómo bajan los insumos y los bollos con cada cobro.
+7. **Recursos Humanos**, **Club** y **Atención al cliente** con datos de ejemplo.
 
-1. **Resumen → Ver el circuito completo en vivo**: recorre solo los 7 pasos de una comanda.
-2. **Menú público (QR/NFC)**, Mesa 5 (ya está armando un pedido): agregá una pizza individual con adicional y aclaración, y enviala.
-3. Con los perfiles **Mozo → Caja → Cocina** validá, confirmá y asigná un tiempo (15′). El cliente ve la cuenta regresiva.
-4. **Asistente** (solo personal): “Confirmar pedido mesa 4”, “Mesa 2 en preparación 18 minutos”, “Pedido 12 listo”, “Mesa 6, una salteña con huevo frito y dos copas de vino”.
-5. **PedidosYa y repartos**: asigná un cadete al delivery listo y simulá un pedido entrante de PedidosYa.
-6. **Caja → Cuentas abiertas**: cobrá la Mesa 7. Buscá a la socia «Agus», escribí el cupón `BIENVENIDA10` (compite con su nivel Oro y su membresía: se aplica uno solo, el mayor), cargá el importe recibido o tocá «Justo» y cobrá con Enter o F12. Suma un sello y una tirada de ruleta.
-7. **Vender**: dos cervezas con el WhatsApp `387 600-1009` y pago mixto Monedero + Cuenta corriente.
-8. **Arqueo / cierre**: contá el efectivo, mandá el resumen por WhatsApp, hacé un Corte X y cerrá con Corte Z. En **Cajas cerradas** verificá el sello SHA-256 y tocá «Probar integridad».
-9. **Fidelización**, **Niveles, cumpleaños y juegos** y **Monedero y gift cards**: sumá un sello por DNI, girá la ruleta y emití una gift card.
-10. Revisá **Fermentación**, **Inventario** y **Fichas técnicas**: los bollos de masa madre y los insumos se descuentan solos según la ficha de cada plato.
+## Cómo se compila
+`fuente/` es la fuente del Sistema VB (Almacén RAVE, V26.65) con la capa ya aplicada. La capa está en `fuente/capa-pizzeria/` (`patch_dp.py`, `p11-pizza.js`, `p11-pub-pizza.html`, `dp_brand.py`); para aplicarla a una fuente nueva: `python3 capa-pizzeria/patch_dp.py <fuente>`.
 
-## Módulos
+```
+cd fuente && python3 build.py pizza ../index.html
+```
+Pruebas en navegador real: `fuente/capa-pizzeria/pruebas/dp1.py` (carta de la mesa → mozo → caja → cocina → cobro con descuento de insumos; roles y asistente) y `dp2.py` (delivery, PedidosYa, rendición, circuito en vivo).
 
-**Operación:** Vender · Pedidos PedidosYa · Caja · Cajas y sucursales · Arqueo / cierre · Cajas cerradas · Inventario · Presupuestos · Mermas y devoluciones · Proveedores y compras · Facturación ARCA.
-**Salón y cocina (Di Parma):** Salón y barra (10 mesas, 3 exterior, 5 banquetas) · Mozo · Cocina · Asistente de voz · Fermentación · Fichas técnicas.
-**Clientes y fidelización:** Clientes · Fidelización · Niveles, cumpleaños y juegos · Monedero y gift cards · Cupones y membresías.
-**Equipo:** Personal y fichaje · Tareas y organigrama. **Menú y web:** Menú público (QR/NFC) · Legal y cumplimiento.
-**Sistema:** Nube · Periféricos y ticket · Importar / Exportar · Integraciones · Usuarios y permisos · Auditoría · Configuración.
+Límites honestos: textos legales y alérgenos son plantillas [VERIFICAR]; periféricos y NFC sin probar con equipos reales; PedidosYa y ARCA reales necesitan las cuentas y el certificado del comercio.
 
-### Caja (V26.54)
-Sesión con fondo inicial por caja · ingresos y egresos con rubro obligatorio · apertura de cajón auditada · cobro con importe recibido obligatorio, botón «Justo» y vuelto en vivo (Enter/F12) · pago mixto · Fiado (vence a 7 días) o Cuenta corriente · monedero y gift card (no cuentan como cobro real) · recargo/descuento por medio de pago (apagado por defecto) · ventas de la caja con detalle, anulación y devolución parcial · conciliación de cobros digitales · Corte X y Corte Z con sello SHA-256 encadenado · cierre unificado · cajas cerradas con verificación, notas que sólo se agregan y exportación CSV/Excel · perfil Simple / Varias cajas / Multisucursal con caja principal, consolidado y traspasos con PIN de administración.
-
-### Club (V26.54)
-Tarjeta de sellos (QR rotativo cada 2 min, código de 8 dígitos, DNI o NFC; 1 cada 24 h) con premios para entregar y tarjeta imprimible 85,6 × 54 mm · niveles por consumo de los últimos 90 días · cumpleaños ±3 días una vez por año · ruleta y trivia con premios ponderados que se revierten al anular · monedero con libro de movimientos y Día de Cuenta Comercio (cashback) · gift cards al portador o nominativas con canje parcial · cupones con audiencia, usos totales y por cliente, públicos o privados · membresías · campañas de WhatsApp sólo a clientes con consentimiento. **Un solo beneficio por compra: gana el mayor.**
-
-Los textos legales son plantillas [VERIFICAR] con asesor; periféricos y NFC sin probar con equipos reales.
-
-Desarrollado por **VINCULAR BUSINESS** · Único celular (387) 4484132 · vincularbusiness@gmail.com · *“Tu idea, en buenas manos.”*
+Desarrollado por **VINCULAR BUSINESS** · Celular (387) 4484132 · https://www.vincularbusiness.com.ar/ · vincularbusiness@gmail.com · *“Tu idea, en buenas manos.”*

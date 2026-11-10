@@ -1,0 +1,52 @@
+# Prueba de la capa Di Parma: servir el index.html en http://127.0.0.1:8765/ (python3 -m http.server 8765) y correr: python3 dp1.py
+from playwright.sync_api import sync_playwright
+B='http://127.0.0.1:8765/'
+errs=[]
+def ok(c,m):print(('OK   ' if c else 'FALLA ')+m)
+with sync_playwright() as p:
+    b=p.chromium.launch(args=['--no-proxy-server'])
+    ctx=b.new_context(viewport={'width':1280,'height':900})
+    staff=ctx.new_page();staff.on('pageerror',lambda e:errs.append('S '+str(e)[:300]));staff.on('console',lambda m:errs.append('S '+m.text[:200]) if m.type=='error' else None)
+    staff.goto(B+'#acceso');staff.wait_for_selector('#lu');staff.select_option('#lu','u1');staff.fill('#lp','1234');staff.click('[data-act=login]');staff.wait_for_timeout(1500)
+    # carta de la mesa 8 en otra pestaña
+    cl=ctx.new_page();cl.on('pageerror',lambda e:errs.append('C '+str(e)[:300]))
+    cl.set_viewport_size({'width':400,'height':860});cl.goto(B+'?mesa=I8');cl.wait_for_timeout(2500)
+    fr=cl.frame_locator('#pubframe')
+    ok('MESA 8' in fr.locator('.mesa').inner_text().upper(),'carta abre con la mesa 8')
+    fr.locator('[data-a=item][data-id=p_dip]').click();fr.locator('[data-a=size][data-v=i]').click();fr.locator('[data-ex=x_hue]').check();fr.locator('[data-a=addok]').click()
+    cl.wait_for_timeout(1500)
+    ok(staff.evaluate("(S.dp.carts.I8||[]).length")==1,'el panel ve la precarga de la mesa 8')
+    fr.locator('.tabs [data-a=tab][data-v=pedido]').click();fr.locator('[data-a=send]').click();cl.wait_for_timeout(1500)
+    n=staff.evaluate("(S.dp.orders.find(o=>o.tableId==='I8')||{}).n")
+    ok(n and staff.evaluate("S.dp.orders.find(o=>o.tableId==='I8').status")=='pend_mozo','pedido QR llega como esperando al mozo #%s'%n)
+    for a in ['validate','confirm']:
+        staff.evaluate(f"(()=>{{const o=S.dp.orders.find(o=>o.tableId==='I8');const e=dpDo('{a}',o);dpCommit();return e;}})()")
+    staff.evaluate("(()=>{const o=S.dp.orders.find(o=>o.tableId==='I8');dpDo('accept',o,15);dpCommit();})()");cl.wait_for_timeout(2000)
+    ok(fr.locator('[data-a=tab][data-v=estado]').count()==1,'tab estado');fr.locator('[data-a=tab][data-v=estado]').click();cl.wait_for_timeout(500)
+    ok(fr.locator('.eta b[data-cd]').count()==1,'el cliente ve la cuenta regresiva')
+    staff.evaluate("(()=>{const o=S.dp.orders.find(o=>o.tableId==='I8');dpDo('ready',o);dpDo('deliver',o);dpCommit();})()")
+    fr.locator('[data-a=bill]').click();cl.wait_for_timeout(1500)
+    ok(staff.evaluate("dpT('I8').session.bill"),'pidió la cuenta (sincronizado)')
+    # cobrar en Vender
+    st0=staff.evaluate("prod('in-huevo').stock");bo0=staff.evaluate("prod('dp-bollo').stock");ns=staff.evaluate("S.sales.length")
+    staff.evaluate("A.dpCobrar({dataset:{t:'I8'}})");staff.wait_for_timeout(1500)
+    ok(staff.locator('#rcv').count()==1,'abre el cobro en Vender')
+    staff.click('[data-act=rcvJusto]');staff.click('#modal-root [data-m=ok]');staff.wait_for_timeout(1500)
+    ok(staff.evaluate("S.sales.length")==ns+1,'venta registrada')
+    ok(staff.evaluate("dpT('I8').session")is None,'mesa cerrada al cobrar')
+    ok(abs(staff.evaluate("prod('in-huevo').stock")-(st0-1))<1e-6,'descontó el huevo del adicional')
+    ok(abs(staff.evaluate("prod('dp-bollo').stock")-(bo0-0.5))<1e-6,'descontó medio bollo (individual)')
+    staff.screenshot(path='/tmp/t2_after.png')
+    # mozo y cocina
+    p2=ctx.new_page();p2.on('pageerror',lambda e:errs.append('M '+str(e)[:300]))
+    p2.goto(B+'#acceso');p2.wait_for_selector('#lu');p2.select_option('#lu','u4');p2.fill('#lp','2222');p2.click('[data-act=login]');p2.wait_for_timeout(1500)
+    ok(p2.evaluate("location.hash")=='#panel/dpmozo','mozo entra a su pantalla')
+    nav=p2.evaluate("[...document.querySelectorAll('#side a')].map(a=>a.textContent.trim())");print('  nav mozo:',nav)
+    p2.evaluate("A.logout()");p2.goto(B+'#acceso');p2.wait_for_selector('#lu');p2.select_option('#lu','u7');p2.fill('#lp','5555');p2.click('[data-act=login]');p2.wait_for_timeout(1500)
+    ok(p2.evaluate("location.hash")=='#panel/dpcocina','cocina entra a su pantalla')
+    r=p2.evaluate("dpVoice('mesa 2 en preparación 18 minutos')");print('  voz:',r)
+    r=p2.evaluate("dpVoice('confirmar pedido mesa 3')");print('  voz caja (cocina):',r)
+    p2.evaluate("A.logout()");p2.goto(B+'#acceso');p2.wait_for_selector('#lu');p2.select_option('#lu','u4');p2.fill('#lp','2222');p2.click('[data-act=login]');p2.wait_for_timeout(1200)
+    r=p2.evaluate("dpVoice('mesa 6, una salteña con huevo frito y dos copas de vino')");print('  voz mozo:',r)
+    print('\n'.join(errs) or 'sin errores')
+    b.close()

@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="es" translate="no"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Di Parma Pizzería · Carta</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--cb:#fff6e2;--ck:#1b130e;--ck2:#5f4f42;--co:#ff7f00;--co2:#b84f00;--cl:#ead9bd;--cc:#ffffff;--fd:'Playfair Display',Georgia,serif;color-scheme:light}
+*{box-sizing:border-box}html,body{margin:0;background:#0b0a0a}
+body{font:400 14.5px/1.45 Poppins,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;color:var(--ck)}
+button{font:inherit;cursor:pointer;color:inherit}button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid var(--co);outline-offset:2px}
+.cx{max-width:560px;margin:0 auto;background:var(--cb);min-height:100vh;position:relative;box-shadow:0 0 0 1px #2b2523}
+.hero{background:#0b0a0a;color:#fff;padding:26px 18px 30px;text-align:center;position:relative;overflow:hidden}
+.hero::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:22px;background:var(--cb);border-radius:22px 22px 0 0}
+.hero img{width:118px;height:118px;border-radius:50%}
+.hero p{font-size:12.5px;color:#e2d5c3;margin:6px 0 0}
+.mesa{display:inline-flex;gap:8px;align-items:center;background:var(--co);color:#1f0d00;border-radius:99px;padding:6px 16px;font:700 15px/1.2 var(--fd);letter-spacing:.05em;text-transform:uppercase;margin-top:10px}
+.tabs{position:sticky;top:0;z-index:10;background:var(--cb);display:grid;grid-template-columns:repeat(4,1fr);border-bottom:1px solid var(--cl)}
+.tabs button{border:0;background:none;padding:13px 4px 11px;font-weight:600;font-size:13px;color:var(--ck2);border-bottom:3px solid transparent;position:relative;min-height:48px}
+.tabs button.on{color:var(--ck);border-bottom-color:var(--co)}
+.tabs .b{position:absolute;top:4px;right:6%;background:var(--co);color:#1f0d00;border-radius:99px;font-size:10.5px;min-width:18px;height:18px;padding:0 5px;display:grid;place-items:center;font-weight:700}
+.body{padding:14px 14px 120px}
+.cats{display:flex;gap:6px;overflow-x:auto;padding-bottom:10px;scrollbar-width:none}
+.cats button{flex:none;border:1px solid var(--cl);background:var(--cc);border-radius:99px;padding:8px 15px;font-weight:600;font-size:13px;min-height:40px}
+.cats button.on{background:var(--ck);color:#fff;border-color:var(--ck)}
+h4{font:800 21px/1.15 var(--fd);margin:8px 0 10px}
+.note{font-size:12.5px;color:var(--ck2);margin:0 0 10px}
+.item{display:grid;grid-template-columns:96px 1fr;gap:12px;width:100%;text-align:left;background:var(--cc);border:1px solid var(--cl);border-radius:16px;padding:10px;margin-bottom:10px}
+.item .pi{width:96px;height:96px;border-radius:12px;overflow:hidden;background:#120f0d}.item .pi svg{display:block;width:100%;height:100%}
+.item b{font:700 16px/1.2 var(--fd);display:block}.item p{font-size:12.5px;color:var(--ck2);margin:3px 0 6px}
+.item .pr{display:flex;justify-content:space-between;align-items:center;font-weight:700}
+.add{background:var(--co);color:#1f0d00;border-radius:99px;padding:5px 12px;font-size:12.5px}
+.tag{display:inline-block;background:#1b130e;color:#fff;border-radius:99px;font:600 10.5px/1 Poppins,sans-serif;padding:4px 8px;margin-left:6px;vertical-align:middle;letter-spacing:.02em}
+.tag.o{background:var(--co);color:#1f0d00}
+.item.agot{opacity:.55}.item.agot .add{background:#d6cdbf}
+.card{background:var(--cc);border:1px solid var(--cl);border-radius:16px;padding:14px;margin-bottom:12px}
+.ln{display:grid;grid-template-columns:28px 1fr auto;gap:8px;align-items:center;padding:8px 0;border-bottom:1px dashed var(--cl)}
+.ln:last-of-type{border-bottom:0}.ln small{display:block;color:var(--ck2);font-size:12px}
+.q{font-weight:700}.qty{display:flex;align-items:center;gap:6px}.qty button{width:36px;height:36px;border-radius:50%;border:1px solid var(--cl);background:var(--cb);font-weight:700;font-size:18px}
+.row{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.btn{display:block;width:100%;border:0;border-radius:14px;padding:14px;background:var(--co);color:#1f0d00;font-weight:700;font-size:15px;min-height:50px}
+.btn.sec{background:var(--cc);color:var(--ck);border:1px solid var(--cl)}.btn:disabled{opacity:.5;cursor:not-allowed}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:4px 0 10px}.seg button{border:1px solid var(--cl);background:var(--cb);border-radius:12px;padding:10px;font-weight:600;min-height:44px}.seg button.on{background:var(--ck);color:#fff;border-color:var(--ck)}
+label.l{display:block;font-size:12.5px;font-weight:600;margin:8px 0 4px}
+input,textarea,select{width:100%;border:1px solid var(--cl);border-radius:12px;padding:11px 12px;font:inherit;background:#fffdf8;color:var(--ck);min-height:44px}
+.chk{display:flex;gap:8px;align-items:flex-start;font-size:13px;margin:6px 0}.chk input{width:auto;min-height:0;margin-top:3px}
+.eta{display:block;text-align:center;background:#0b0a0a;color:#fff;border-radius:16px;padding:14px;margin-bottom:12px}.eta b{display:block;font:800 42px/1.1 var(--fd);color:#ff9a3d;margin:4px 0}
+.steps{display:flex;flex-direction:column;gap:6px}.st{display:grid;grid-template-columns:28px 1fr auto;gap:8px;align-items:center;color:var(--ck2)}
+.st i{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-style:normal;font-weight:700;font-size:12px;border:2px solid var(--cl);background:var(--cb)}
+.st.done{color:var(--ck)}.st.done i{background:#1e7a46;border-color:#1e7a46;color:#fff}.st.cur{color:var(--ck);font-weight:600}.st.cur i{background:var(--co);border-color:var(--co);color:#1f0d00}
+.st small{display:block;font-weight:400;font-size:11.5px;color:var(--ck2)}.cd{background:#0b0a0a;color:#ff9a3d;border-radius:99px;padding:3px 10px;font-weight:700;font-variant-numeric:tabular-nums}
+.cartbar{position:fixed;left:50%;transform:translateX(-50%);bottom:14px;width:min(532px,calc(100% - 28px));display:flex;justify-content:space-between;background:var(--ck);color:#fff;border:0;border-radius:16px;padding:15px 18px;font-weight:700;box-shadow:0 10px 30px rgba(0,0,0,.35);z-index:20;min-height:52px}
+.sheet{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:40;display:flex;align-items:flex-end;justify-content:center}
+.sheet>div{background:var(--cb);width:min(560px,100%);max-height:92vh;overflow:auto;border-radius:22px 22px 0 0;padding:16px 16px 22px}
+.sheet .big{border-radius:16px;overflow:hidden;height:190px;background:#120f0d;margin-bottom:10px}.sheet .big svg{width:100%;height:100%;display:block}
+.x{width:40px;height:40px;border-radius:50%;border:1px solid var(--cl);background:var(--cc);font-size:22px;line-height:1}
+.toast{position:fixed;left:50%;bottom:84px;transform:translateX(-50%);background:#1b130e;color:#fff;padding:11px 16px;border-radius:12px;z-index:60;font-size:13.5px;max-width:90%;text-align:center}
+.foot{text-align:center;font-size:12px;color:var(--ck2);margin-top:20px;line-height:1.6}.foot a{color:var(--co2)}
+.err{color:#a8261b;font-size:13px;margin:6px 0}.ok{color:#1e7a46;font-size:13px;margin:6px 0}
+.empty{text-align:center;color:var(--ck2)}
+.team{display:inline-block;margin-top:10px;background:none;border:1px solid var(--cl);border-radius:12px;padding:8px 14px;font-size:13px}
+@media (prefers-reduced-motion:no-preference){.item,.btn,.cats button{transition:transform .12s ease}.item:active,.btn:active{transform:scale(.98)}}
+</style></head>
+<body>
+<div class="cx" id="root" aria-live="polite"></div>
+<script>
+(function(){'use strict';
+var P=null,R=null;try{P=window.parent.DP_API;R=window.parent.RAVE_API;}catch(e){}
+var LOGO="__LOGO__";
+var MESA=(window.__DPMESA||'').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,4);
+var U={tab:'carta',cat:'dp-piz',sheet:null,web:{modo:'retiro',name:'',tel:'',addr:''},toast:'',mine:[],club:null};
+try{U.mine=JSON.parse(sessionStorage.getItem('dp.mine')||'[]');}catch(e){}
+var LOCAL_CART=[];
+var C=null;
+var NF=new Intl.NumberFormat('es-AR',{maximumFractionDigits:0});
+function money(n){return '$ '+NF.format(Math.round(n||0));}
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+function pad(n){return String(n).padStart(2,'0');}
+function mmss(ms){var neg=ms<0;ms=Math.abs(ms);var s=Math.floor(ms/1000),m=Math.floor(s/60);return (neg?'+':'')+m+':'+pad(s%60);}
+function hm(t){var d=new Date(t);return pad(d.getHours())+':'+pad(d.getMinutes());}
+function prod(id){if(!C)return null;for(var i=0;i<C.prods.length;i++){var p=C.prods[i];if(p.id===id)return p;if(p.ind&&p.ind.id===id)return {id:p.ind.id,n:p.n+' (individual)',price:p.ind.price,art:p.art,base:p};}return null;}
+function extra(id){if(!C)return null;for(var i=0;i<C.extras.length;i++)if(C.extras[i].id===id)return C.extras[i];return null;}
+function unit(l){var p=prod(l.pid);var u=p?p.price:0;(l.ex||[]).forEach(function(e){var x=extra(e);if(x)u+=x.price;});return u;}
+function cart(){return C&&C.table?(C.cart||[]):LOCAL_CART;}
+function setCart(L){if(C&&C.table){C.cart=L;try{P.cart(MESA,L);}catch(e){}}else LOCAL_CART=L;}
+function load(){if(!P){C=null;return;}try{C=P.ctx(MESA);}catch(e){C=null;}}
+function myOrders(){if(!P||!C)return [];if(C.table)return C.orders||[];try{return P.orders(U.mine);}catch(e){return [];}}
+function toast(m){U.toast=m;paint();clearTimeout(toast.t);toast.t=setTimeout(function(){U.toast='';paint();},2600);}
+var STEPS_T=[['pend_mozo','Enviado al mozo'],['pend_caja','Confirmado por el mozo'],['pend_cocina','Confirmado en caja'],['preparando','En el horno'],['listo','¡Listo! Ya te lo llevan'],['entregado','Servido']];
+function steps(o){if(o.tableId)return STEPS_T.filter(function(s){return !(s[0]==='pend_mozo'&&o.channel!=='qr');});var del=o.channel==='delivery';
+ return [['pend_caja','Recibido por Di Parma'],['pend_cocina','Confirmado'],['preparando','En el horno'],['listo',del?'Listo · sale con el cadete':'¡Listo para retirar!'],['entregado',del?'Entregado':'Retirado']];}
+var STEP={pend_mozo:1,pend_caja:2,pend_cocina:3,preparando:4,listo:5,en_camino:5,entregado:6,cancelado:0};
+function viewCarta(){var cats=C.cats.map(function(k){return '<button class="'+(U.cat===k.id?'on':'')+'" data-a="cat" data-v="'+k.id+'">'+esc(k.s)+'</button>';}).join('');
+ var cat=C.cats.filter(function(k){return k.id===U.cat;})[0]||C.cats[0];
+ var L=C.prods.filter(function(p){return p.cat===U.cat;}).map(function(p){return '<button class="item'+(p.agot?' agot':'')+'" data-a="item" data-id="'+p.id+'" '+(p.agot?'aria-disabled="true"':'')+'><div class="pi">'+p.art+'</div><div><b>'+esc(p.n)+(p.star?'<span class="tag o">De la casa</span>':'')+(p.alc?'<span class="tag">+18</span>':'')+'</b><p>'+esc(p.d)+'</p><div class="pr"><span>'+money(p.price)+(p.ind?' <small style="font-weight:500;color:var(--ck2)">· indiv. '+money(p.ind.price)+'</small>':'')+'</span><span class="add">'+(p.agot?'Agotado':'Agregar')+'</span></div></div></button>';}).join('');
+ return '<nav class="cats" aria-label="Categorías">'+cats+'</nav>'+(U.cat==='dp-piz'?'<p class="note">Masa madre de 48 a 72 h de maduración en frío, horno a 450 °C. Grande (8 porciones) o individual (4).</p>':'')+'<h4>'+esc(cat.n)+'</h4>'+L;}
+function viewPedido(){var L=cart();var tot=L.reduce(function(a,l){return a+unit(l)*l.qty;},0);
+ if(!L.length)return '<h4>Tu pedido</h4><div class="card empty">Todavía no agregaste nada.<br><br><button class="btn sec" data-a="tab" data-v="carta">Ver la carta</button></div>';
+ var lines='<div class="card">'+L.map(function(l,i){var p=prod(l.pid);var ex=(l.ex||[]).map(function(e){var x=extra(e);return x?x.n:'';}).filter(Boolean);
+  return '<div class="ln"><span class="q">'+l.qty+'×</span><div><b>'+esc(p?p.n:'?')+'</b>'+(ex.length?'<small>+ '+esc(ex.join(', '))+'</small>':'')+(l.note?'<small style="color:#a14d00">“'+esc(l.note)+'”</small>':'')+'<small>'+money(unit(l)*l.qty)+'</small></div><div class="qty"><button data-a="qty" data-i="'+i+'" data-d="-1" aria-label="Quitar uno">−</button><span>'+l.qty+'</span><button data-a="qty" data-i="'+i+'" data-d="1" aria-label="Agregar uno">+</button></div></div>';}).join('')
+  +'<div class="row" style="margin-top:10px"><b>Total</b><b style="font:800 24px/1 var(--fd)">'+money(tot)+'</b></div></div>';
+ var send;if(C.table){send='<p class="note">Lo que vas cargando ya lo ve '+esc(C.table.mozo)+'. Cuando lo envíes, lo confirma en la mesa, pasa a caja y a cocina. Vas a ver el tiempo de entrega en vivo.</p><div class="err" id="er"></div><button class="btn" data-a="send">Enviar pedido a '+esc(C.table.mozo)+'</button>';}
+ else{var W=U.web;send='<div class="card"><div class="seg" role="radiogroup" aria-label="Cómo lo recibís">'+[['retiro','Retiro en el local'],['delivery','Delivery']].map(function(x){return '<button role="radio" aria-checked="'+(W.modo===x[0])+'" class="'+(W.modo===x[0]?'on':'')+'" data-a="modo" data-v="'+x[0]+'">'+x[1]+'</button>';}).join('')+'</div>'
+  +'<label class="l" for="wn">Nombre</label><input id="wn" data-f="name" value="'+esc(W.name)+'" autocomplete="name" maxlength="40"><label class="l" for="wt">Celular</label><input id="wt" data-f="tel" value="'+esc(W.tel)+'" inputmode="tel" autocomplete="tel" maxlength="20">'
+  +(W.modo==='delivery'?'<label class="l" for="wa">Dirección de entrega</label><input id="wa" data-f="addr" value="'+esc(W.addr)+'" autocomplete="street-address" maxlength="80">':'')
+  +'<p class="note" style="margin-top:8px">Pagás al '+(W.modo==='delivery'?'recibir (efectivo o QR)':'retirar')+'. Te avisamos el tiempo de entrega acá mismo.</p></div><div class="err" id="er"></div><button class="btn" data-a="send">Enviar pedido a Di Parma</button>';}
+ return '<h4>Tu pedido</h4>'+lines+send;}
+function viewEstado(){var os=myOrders();var live=os.filter(function(o){return o.status==='preparando';}).sort(function(a,b){return a.etaAt-b.etaAt;})[0];
+ var h='<h4>'+(C.table?'Estado de tu mesa':'Estado de tu pedido')+'</h4>';
+ if(live)h+='<div class="eta" role="timer">Tu pedido #'+live.n+' sale del horno en<b data-cd="'+live.etaAt+'">'+mmss(live.etaAt-Date.now())+'</b><span style="font-size:12.5px;color:#e2d5c3">Tiempo estimado por cocina: '+live.eta+' min</span></div>';
+ if(os.length)h+=os.slice().reverse().map(function(o){var cur=STEP[o.status];var logOf=function(s){for(var i=0;i<o.log.length;i++)if(o.log[i].s===s)return o.log[i];return null;};
+  if(o.status==='cancelado')return '<div class="card"><b>Pedido #'+o.n+'</b><p class="err">Este pedido fue cancelado. '+(C.table?'Consultá con el mozo.':'Te vamos a llamar.')+'</p></div>';
+  return '<div class="card"><div class="row" style="margin-bottom:8px"><b>Pedido #'+o.n+'</b><span class="note" style="margin:0">'+o.items+' ítems · '+money(o.total)+'</span></div><div class="steps">'+steps(o).map(function(s,ix){var st=STEP[s[0]];var d=st<cur||(st===cur&&s[0]==='entregado');var cu=st===cur&&s[0]!=='entregado';var lg=logOf(s[0]);
+   return '<div class="st'+(d?' done':'')+(cu?' cur':'')+'"><i>'+(d?'✓':ix+1)+'</i><div>'+s[1]+(s[0]==='preparando'&&o.eta?'<small>Tiempo estimado '+o.eta+' min</small>':'')+(lg?'<small>'+hm(lg.t)+' h</small>':'')+'</div>'+(s[0]==='preparando'&&o.status==='preparando'?'<span class="cd" data-cd="'+o.etaAt+'">'+mmss(o.etaAt-Date.now())+'</span>':'<span></span>')+'</div>';}).join('')+'</div></div>';}).join('');
+ else h+='<div class="card empty">Todavía no enviaste ningún pedido'+(C.table?' desde esta mesa':'')+'.</div>';
+ if(C.table){h+=(C.table.open?'<div class="card"><div class="row"><span>Consumo de la mesa</span><b style="font:800 22px/1 var(--fd)">'+money(C.table.total)+'</b></div></div>':'')
+  +'<div class="g2"><button class="btn sec" data-a="call">🔔 Llamar al mozo</button><button class="btn sec" data-a="bill" '+(C.table.open&&os.length&&!C.table.bill?'':'disabled')+'>🧾 Pedir la cuenta</button></div>'
+  +(C.table.bill?'<p class="note" style="text-align:center;margin-top:10px">Ya pediste la cuenta. ¡Gracias por venir!</p>':'');}
+ return h;}
+function viewClub(){var c=C.club;var r=U.club;
+ return '<h4>Club Di Parma</h4><div class="card"><p style="margin:0 0 6px">Sumá un sello por cada visita. Con <b>'+c.goal+' sellos</b>: '+esc(c.reward)+'. Además: niveles por consumo, beneficio de cumpleaños y cupones.</p><p class="note" style="margin:0">'+esc(C.promo)+'.</p></div>'
+  +'<div class="card"><b>Sumate gratis</b><label class="l" for="cn">Nombre y apellido</label><input id="cn" autocomplete="name" maxlength="80"><label class="l" for="cw">WhatsApp</label><input id="cw" inputmode="tel" autocomplete="tel" maxlength="20" placeholder="387 512-3456"><label class="l" for="cb">Cumpleaños</label><input id="cb" type="date">'
+  +'<label class="chk"><input type="checkbox" id="cc1"> <span>Acepto la política de privacidad y que Di Parma guarde mis datos para el Club (obligatorio).</span></label><label class="chk"><input type="checkbox" id="cc2"> <span>Quiero recibir promociones por WhatsApp (opcional).</span></label>'
+  +(r?'<p class="'+(r.ok?'ok':'err')+'">'+esc(r.msg)+'</p>':'')+'<button class="btn" data-a="join">Sumarme al Club</button></div>'
+  +'<div class="card"><b>¿Tenés un cupón?</b><div class="row" style="margin-top:6px"><input id="cp" placeholder="Ej.: BIENVENIDA10" maxlength="24" style="text-transform:uppercase"><button class="btn sec" style="width:auto;padding:0 16px" data-a="cup">Ver</button></div>'+(U.cup?'<p class="'+(U.cup.ok?'ok':'err')+'">'+esc(U.cup.msg)+'</p>':'')+'<p class="note" style="margin:6px 0 0">El beneficio se aplica al pagar en caja (uno solo por compra: el mayor).</p></div>';}
+function sheetItem(){var p=prod(U.sheet.id);if(!p)return '';var S2=U.sheet;var pz=p.cat==='dp-piz';var base=S2.size==='i'&&p.ind?p.ind.price:p.price;var ex=0;S2.ex.forEach(function(e){var x=extra(e);if(x)ex+=x.price;});
+ return '<div class="sheet" data-a="out"><div role="dialog" aria-modal="true" aria-label="'+esc(p.n)+'" data-stop="1"><div class="big">'+p.art+'</div><div class="row"><b style="font:800 22px/1.1 var(--fd)">'+esc(p.n)+'</b><button class="x" data-a="close" aria-label="Cerrar">×</button></div><p class="note" style="margin:4px 0 10px">'+esc(p.d)+'</p>'
+  +(p.ind?'<div class="seg" role="radiogroup" aria-label="Tamaño">'+[['g','Grande · 8 porciones'],['i','Individual · 4']].map(function(x){return '<button role="radio" aria-checked="'+(S2.size===x[0])+'" class="'+(S2.size===x[0]?'on':'')+'" data-a="size" data-v="'+x[0]+'">'+x[1]+'</button>';}).join('')+'</div>':'')
+  +(pz?'<label class="l">Adicionales</label>'+C.extras.map(function(x){return '<label class="chk"><input type="checkbox" data-ex="'+x.id+'" '+(S2.ex.indexOf(x.id)>=0?'checked':'')+'> <span>'+esc(x.n)+' · '+money(x.price)+'</span></label>';}).join(''):'')
+  +'<label class="l" for="nt">Aclaración para la cocina</label><input id="nt" maxlength="60" placeholder="Ej.: bien cocida, sin albahaca" value="'+esc(S2.note)+'">'
+  +'<div class="row" style="margin-top:12px"><div class="qty"><button data-a="sq" data-d="-1" aria-label="Uno menos">−</button><span>'+S2.qty+'</span><button data-a="sq" data-d="1" aria-label="Uno más">+</button></div><button class="btn" style="width:auto;flex:1" data-a="addok">Agregar · '+money((base+ex)*S2.qty)+'</button></div></div></div>';}
+function paint(){var root=document.getElementById('root');if(!P||!C){root.innerHTML='<div class="hero"><img src="'+LOGO+'" alt="Di Parma Pizzería"></div><div class="body"><div class="card">La carta no está disponible en este momento.</div></div>';return;}
+ var sc=window.scrollY;var L=cart();var n=L.reduce(function(a,l){return a+l.qty;},0);var tot=L.reduce(function(a,l){return a+unit(l)*l.qty;},0);var act=myOrders().filter(function(o){return ['pend_mozo','pend_caja','pend_cocina','preparando','listo','en_camino'].indexOf(o.status)>=0;}).length;
+ var hero=C.table?'<div class="mesa">'+esc(C.table.label)+'</div><p>Te atiende '+esc(C.table.mozo)+'</p>':'<div class="mesa">Retiro y delivery</div><p>¿Estás en el local? Escaneá el QR o apoyá el celular en el NFC de tu mesa.</p>';
+ var body=U.tab==='carta'?viewCarta():U.tab==='pedido'?viewPedido():U.tab==='estado'?viewEstado():viewClub();
+ root.innerHTML='<header class="hero"><img src="'+LOGO+'" alt="Di Parma Pizzería · De masa madre"><p>'+esc(C.biz.hours)+'</p>'+hero+'</header>'
+  +'<nav class="tabs" aria-label="Secciones">'+[['carta','Carta',0],['pedido','Mi pedido',n],['estado','Estado',act],['club','Club',0]].map(function(t){return '<button class="'+(U.tab===t[0]?'on':'')+'" data-a="tab" data-v="'+t[0]+'" aria-current="'+(U.tab===t[0])+'">'+t[1]+(t[2]?'<span class="b">'+t[2]+'</span>':'')+'</button>';}).join('')+'</nav>'
+  +'<main class="body">'+body+'<div class="foot">'+esc(C.biz.name)+' · '+esc(C.biz.dir)+'<br>Precios finales en pesos. Beber con moderación. Prohibida la venta de bebidas alcohólicas a menores de 18 años.<br><a href="#" data-a="legal">Privacidad y términos</a>'
+  +'<br><span style="display:inline-block;margin-top:10px">Carta digital y gestión: <b>Sistema Vincular Business</b> · VINCULAR BUSINESS · Cel. (387) 4484132 · <a href="https://www.vincularbusiness.com.ar/" target="_blank" rel="noopener noreferrer">vincularbusiness.com.ar</a> · vincularbusiness@gmail.com<br><i>“Tu idea, en buenas manos.”</i></span>'
+  +(window.__DPEMBED?'':'<br><button class="team" data-a="team">🔒 Acceso del equipo</button>')+'</div></main>'
+  +(U.tab==='carta'&&n?'<button class="cartbar" data-a="tab" data-v="pedido"><span>Ver mi pedido · '+n+' '+(n===1?'ítem':'ítems')+'</span><span>'+money(tot)+'</span></button>':'')
+  +(U.sheet?sheetItem():'')+(U.legal?'<div class="sheet" data-a="out"><div role="dialog" aria-modal="true" aria-label="Privacidad y términos" data-stop="1"><div class="row"><b style="font:800 20px/1.1 var(--fd)">Privacidad y términos</b><button class="x" data-a="close" aria-label="Cerrar">×</button></div>'+U.legal+'</div></div>':'')
+  +(U.toast?'<div class="toast" role="status">'+esc(U.toast)+'</div>':'');
+ window.scrollTo(0,sc);}
+function errMsg(m){var e=document.getElementById('er');if(e)e.textContent=m;}
+document.addEventListener('click',function(ev){var el=ev.target.closest('[data-a]');if(!el)return;var a=el.dataset.a;
+ if(a==='out'&&ev.target.closest('[data-stop]'))return;
+ if(a==='tab'){U.tab=el.dataset.v;U.sheet=null;paint();window.scrollTo(0,0);return;}
+ if(a==='cat'){U.cat=el.dataset.v;paint();return;}
+ if(a==='item'){var p=prod(el.dataset.id);if(!p||p.agot){toast('Ese plato está agotado por hoy.');return;}U.sheet={id:p.id,size:'g',ex:[],note:'',qty:1};paint();return;}
+ if(a==='close'||a==='out'){U.sheet=null;U.legal=null;paint();return;}
+ if(a==='size'){U.sheet.size=el.dataset.v;paint();return;}
+ if(a==='sq'){U.sheet.qty=Math.max(1,Math.min(20,U.sheet.qty+(+el.dataset.d)));paint();return;}
+ if(a==='addok'){var s=U.sheet,pp=prod(s.id);var pid=s.size==='i'&&pp.ind?pp.ind.id:pp.id;var nt=(document.getElementById('nt')||{}).value||'';var L=cart().slice();
+  var same=L.filter(function(l){return l.pid===pid&&!l.note&&!nt&&(l.ex||[]).join()===s.ex.join();})[0];if(same)same.qty+=s.qty;else L.push({pid:pid,qty:s.qty,ex:s.ex.slice(),note:nt.slice(0,60)});
+  setCart(L);U.sheet=null;toast('Agregado a tu pedido'+(C.table?' · '+C.table.mozo+' ya lo ve':'')+'.');return;}
+ if(a==='qty'){var L2=cart().slice();var l=L2[+el.dataset.i];if(!l)return;l.qty+=(+el.dataset.d);if(l.qty<=0)L2.splice(+el.dataset.i,1);setCart(L2);paint();return;}
+ if(a==='modo'){U.web.modo=el.dataset.v;paint();return;}
+ if(a==='send'){var r;try{r=P.send(C.table?{mesa:MESA,lines:cart()}:{modo:U.web.modo,name:U.web.name,tel:U.web.tel,addr:U.web.addr,lines:cart()});}catch(e){r={ok:false,msg:'No se pudo enviar. Probá de nuevo.'};}
+  if(!r||!r.ok){errMsg(r&&r.msg||'No se pudo enviar.');return;}if(!C.table){U.mine.push(r.id);try{sessionStorage.setItem('dp.mine',JSON.stringify(U.mine));}catch(e){}LOCAL_CART=[];}
+  load();U.tab='estado';toast(C.table?'¡Pedido #'+r.n+' enviado! '+C.table.mozo+' lo confirma en la mesa.':'¡Pedido #'+r.n+' recibido! Te mostramos acá cada paso.');window.scrollTo(0,0);return;}
+ if(a==='call'){if(P.call(MESA)){load();toast(C.table.mozo+' ya viene a tu mesa.');}return;}
+ if(a==='bill'){if(P.bill(MESA)){load();toast('Listo: '+C.table.mozo+' te trae la cuenta.');}return;}
+ if(a==='join'){var nm=document.getElementById('cn').value,w=document.getElementById('cw').value,b=document.getElementById('cb').value;if(!document.getElementById('cc1').checked){U.club={ok:false,msg:'Para sumarte tenés que aceptar la política de privacidad.'};paint();return;}
+  var jr;try{jr=R.clubJoin({nombre:nm,whatsapp:w,cumple:b,comm:document.getElementById('cc2').checked});}catch(e){jr={ok:false,msg:'No se pudo completar el alta.'};}U.club={ok:!!(jr&&jr.ok),msg:(jr&&jr.msg)||'Listo.'};paint();return;}
+ if(a==='cup'){var code=(document.getElementById('cp').value||'').trim().toUpperCase();if(!code)return;var tot2=cart().reduce(function(x,l){return x+unit(l)*l.qty;},0);var ci;try{ci=R.couponInfo(code,Math.round(tot2*100));}catch(e){ci={ok:false,msg:'No se pudo consultar.'};}
+  U.cup={ok:!!ci.ok,msg:ci.ok?(ci.msg||('Cupón '+code+' válido.')):(ci.msg||'Cupón no válido.')};paint();return;}
+ if(a==='legal'){ev.preventDefault();var docs=[];try{docs=R.legal()||[];}catch(e){}U.legal=docs.slice(0,3).map(function(d){return '<h3 style="font:700 16px/1.2 var(--fd);margin:14px 0 6px">'+esc(d.title)+'</h3><div style="font-size:13px">'+d.html+'</div>';}).join('')||'<p>No disponible.</p>';paint();return;}
+ if(a==='team'){try{R.openPanel();}catch(e){}return;}});
+document.addEventListener('input',function(ev){var t=ev.target;if(t.dataset&&t.dataset.f){U.web[t.dataset.f]=t.value;}});
+document.addEventListener('change',function(ev){var t=ev.target;if(t.dataset&&t.dataset.ex&&U.sheet){var i=U.sheet.ex.indexOf(t.dataset.ex);if(t.checked&&i<0)U.sheet.ex.push(t.dataset.ex);if(!t.checked&&i>=0)U.sheet.ex.splice(i,1);var nt=document.getElementById('nt');if(nt)U.sheet.note=nt.value;paint();}});
+var lastRev=0;
+setInterval(function(){[].forEach.call(document.querySelectorAll('[data-cd]'),function(el){el.textContent=mmss(+el.dataset.cd-Date.now());});
+ if(!P)return;var r=0;try{r=P.rev();}catch(e){}if(r!==lastRev){lastRev=r;var a=document.activeElement;if(a&&/INPUT|TEXTAREA|SELECT/.test(a.tagName))return;var keep=C&&!C.table?LOCAL_CART:null;load();if(keep)LOCAL_CART=keep;if(!U.sheet)paint();}},1000);
+window.RAVE_OPEN_MYCARD=function(){U.tab='club';paint();};
+load();lastRev=P?P.rev():0;paint();
+})();
+</script>
+</body></html>

@@ -1,0 +1,128 @@
+/* ===== Bloques agregados por Sistema RAVE (fidelización, cupones, legal) ===== */
+.cp-coupon{margin:10px 0 2px;padding:10px 12px;border:1px dashed var(--gold);border-radius:12px}
+.cp-coupon label{display:block;font-size:12px;font-weight:600;margin-bottom:6px}
+.cp-coupon-row{display:flex;gap:8px}
+.cp-coupon-row input{flex:1;min-width:0;padding:10px 12px;border-radius:8px;border:1px solid var(--line);font:600 15px Poppins,sans-serif;text-transform:uppercase;background:var(--cream);color:var(--ink)}
+.cp-coupon-row button{min-height:44px;padding:0 14px;border:0;border-radius:8px;background:var(--gold);color:var(--charcoal);font:700 13px Poppins,sans-serif;cursor:pointer}
+#cp-coupon-msg{font-size:12px;margin-top:6px;min-height:1em}
+#cp-coupon-msg.ok{color:#1e7a46}#cp-coupon-msg.bad{color:#a33}
+.cp-total-row.disc{color:#1e7a46;padding-top:2px}
+.cp-cards{display:grid;gap:10px}
+.cp-card{display:flex;gap:12px;align-items:center;border:1px solid var(--line);border-left:5px solid var(--gold);border-radius:12px;padding:12px;background:var(--cream)}
+.cp-card .cc-txt{flex:1;min-width:0}
+.cp-card b.cc-code{display:inline-block;font:700 15px/1 'Poppins',monospace;letter-spacing:1.2px;background:var(--charcoal-2);color:#f3dca3;padding:6px 9px;border-radius:8px}
+.cp-card .cc-d{font-size:13px;font-weight:600;margin-top:6px}.cp-card .cc-s{font-size:11.5px;color:#6f6a5c;margin-top:2px}
+.cp-card button{min-height:44px;min-width:44px;border:1px solid var(--line);border-radius:10px;background:transparent;color:var(--ink);font:600 12px Poppins,sans-serif;padding:0 12px;cursor:pointer}
+.loy-card{background:linear-gradient(160deg,#242220,#3a3733);color:#f3eee4;border-radius:16px;padding:18px;border:1px solid #5a4a28}
+.loy-card h3{font-family:'Playfair Display',serif;margin:0;font-size:18px;color:#f3dca3}
+.loy-card .loy-sub{font-size:12px;color:#c9c2b3;margin:2px 0 12px}
+.loy-stamps{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin:10px 0}
+.loy-stamps i{aspect-ratio:1;border-radius:50%;border:2px dashed #7a6a42;display:grid;place-items:center;font-style:normal;font-size:18px;color:#7a6a42}
+.loy-stamps i.on{background:var(--gold);border:2px solid var(--gold);color:#241a05}
+.loy-meta{display:flex;justify-content:space-between;gap:8px;font-size:12px;color:#c9c2b3;flex-wrap:wrap}
+.loy-reward{margin-top:10px;padding:10px 12px;border-radius:10px;background:rgba(201,150,62,.18);font-size:13px;font-weight:600;color:#f3dca3}
+.loy-code{margin-top:12px;background:#fff;color:#242220;border-radius:12px;padding:12px;text-align:center}
+.loy-code svg{width:170px;height:170px;max-width:100%}
+.loy-code .lc-n{font:700 26px/1.1 'Poppins',monospace;letter-spacing:3px;margin-top:4px}
+.loy-code .lc-s{font-size:12px;color:#6f6a5c}
+.loy-btn{min-height:48px;width:100%;border:0;border-radius:12px;background:var(--gold);color:#241a05;font:700 14px Poppins,sans-serif;cursor:pointer;margin-top:12px}
+.loy-link{background:none;border:0;color:inherit;text-decoration:underline;font:12px Poppins,sans-serif;margin-top:10px;cursor:pointer;min-height:44px}
+.loy-rec .club-field{margin-bottom:10px}
+.loy-member{margin-top:10px;font-size:12.5px;padding:8px 10px;border-radius:10px;border:1px solid #7a6a42}
+.plan-list{display:grid;gap:8px;margin-top:10px}
+.plan-list .pl{border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--cream);font-size:13px}
+.club-consent2{margin-top:0}
+.legal-body h4{margin:12px 0 4px}
+.arrep-btn{display:block;width:100%;min-height:48px;margin-top:10px;border:1px solid var(--gold);background:transparent;color:inherit;border-radius:10px;font:600 13px Poppins,sans-serif;cursor:pointer}
+.club-hint{display:block;margin-top:4px;font-size:11px;opacity:.7}
+.loy-tip{font-size:12px;opacity:.75;margin:10px 0 0}
+.loy-alt{background:transparent;color:var(--gold);border:1px solid var(--gold)}
+#loy-savebox{margin-top:6px}
+#ship-box{margin:10px 0;padding:10px;border:1px solid rgba(201,150,62,.45);border-radius:12px}
+#ship-box .sh-h{margin:0 0 6px;font:700 15px Poppins,sans-serif}
+#ship-box label{display:block;font:500 13px Poppins,sans-serif;margin:8px 0 3px}
+#ship-box input[type=text],#ship-box input:not([type]),#ship-box select{width:100%;min-height:44px;box-sizing:border-box;border-radius:10px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.07);color:inherit;padding:8px 10px;font:14px Poppins,sans-serif}
+#ship-box .sh-opt{display:flex;align-items:center;gap:8px;min-height:44px;margin:0}
+#ship-box .sh-opt input{width:20px;height:20px}
+#ship-box .sh-n{font:12px Poppins,sans-serif;opacity:.85;margin:6px 0}
+#ship-box .sh-sum{font:13px Poppins,sans-serif;margin:8px 0}
+#ship-box .sh-err{color:#ffb4a8;font:600 13px Poppins,sans-serif;margin:6px 0}
+
+/* V26.19 · tarjeta de ejemplo del Club */
+#loy-sample{margin:0 0 14px}
+.loy-card.loy-sample{position:relative;opacity:.97}
+.loy-ej{position:absolute;top:10px;right:12px;font:700 11px/1 inherit;letter-spacing:.12em;padding:4px 8px;border-radius:999px;background:rgba(201,150,62,.18);color:#c9963e}
+.loy-stamps i.loy-pz{font-style:normal}
+
+.loy-wallet{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+.wal-btn{min-height:48px;border-radius:12px;font:700 13px/1.2 Poppins,Arial,sans-serif;cursor:pointer;padding:6px 8px}
+.wal-apple{background:#000;color:#fff;border:1px solid #444}
+.wal-google{background:#fff;color:#202124;border:1px solid #dadce0}
+#loy-walbox{margin-top:10px}
+@media(max-width:340px){.loy-wallet{grid-template-columns:1fr}}
+
+/* ===================== V26.32 · Carrito rediseñado ===================== */
+#cart-panel{--cp-bg:var(--cream);background:var(--cp-bg);position:relative;padding:0 18px;max-height:86vh;border-radius:20px 20px 0 0;box-shadow:0 -10px 30px rgba(0,0,0,.25)}
+.cp-head{position:sticky;top:0;z-index:2;display:flex;align-items:center;gap:10px;padding:14px 0 12px;margin-bottom:2px;background:var(--cp-bg);border-bottom:1px solid var(--line)}
+#cart-panel .cp-head h3{margin:0;text-align:left;font-size:20px;color:var(--ink)}
+.cp-count{margin-right:auto;font-size:12.5px;font-weight:600;color:var(--muted)}
+.cp-x{width:44px;height:44px;flex:none;border-radius:50%;border:1px solid var(--line);background:var(--card-bg);color:var(--ink);font:400 26px/1 Poppins,Arial,sans-serif;cursor:pointer}
+.cp-item{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid var(--line)}
+.cp-item .cp-main{min-width:0}
+.cp-item .cp-name{font-size:14px;font-weight:600;line-height:1.3;color:var(--ink);overflow-wrap:anywhere}
+.cp-item .cp-unit{font-size:12px;color:var(--muted);margin-top:2px}
+.cp-step{display:inline-flex;align-items:center;border:1px solid var(--line);border-radius:999px;background:var(--card-bg)}
+.cp-step button{width:44px;height:44px;border:0;background:transparent;color:var(--gold-ink,var(--gold));font:700 19px/1 Poppins,Arial,sans-serif;cursor:pointer;border-radius:50%}
+.cp-step button.cp-dec{font-size:16px}
+.cp-step .cp-qty{min-width:20px;text-align:center;font-size:14px;font-weight:700;color:var(--ink)}
+.cp-item .cp-line{min-width:76px;text-align:right;font-size:14px;font-weight:700;color:var(--ink)}
+#cart-empty{padding:30px 0 12px;text-align:center}
+#cart-empty .ce-ic{font-size:42px;line-height:1}
+#cart-empty .ce-t{margin:10px 0 2px;font-size:15px;font-weight:600;color:var(--ink)}
+#cart-empty .ce-s{margin:0;font-size:13px;color:var(--muted)}
+.ce-undo{margin-top:12px;min-height:44px;padding:0 16px;border-radius:999px;border:1px solid var(--line);background:var(--card-bg);color:var(--gold-ink,var(--gold));font:600 13px Poppins,sans-serif;cursor:pointer}
+#cart-panel.is-empty .cp-coupon,#cart-panel.is-empty #ship-box,#cart-panel.is-empty .cp-total-row,#cart-panel.is-empty .cp-note,#cart-panel.is-empty .cp-buttons{display:none}
+#cart-panel .cp-coupon{margin:14px 0 4px}
+#cart-panel .cp-total-row{padding:14px 0 4px;margin-top:6px;border-top:2px solid var(--line);font-size:15px;color:var(--ink)}
+#cart-panel #cp-total-val{font-family:'Playfair Display',serif;font-size:21px}
+#cart-panel .cp-note{margin:4px 0 10px}
+#cart-panel .cp-buttons{position:sticky;bottom:0;z-index:2;flex-direction:column;gap:8px;margin:8px -18px 0;padding:12px 18px calc(12px + env(safe-area-inset-bottom,0px));background:var(--cp-bg);border-top:1px solid var(--line);box-shadow:0 -10px 18px -14px rgba(0,0,0,.45)}
+#cart-panel .cp-btn{flex:none;width:100%;min-height:44px;border-radius:12px}
+#cart-panel .cp-btn.send{min-height:52px;font-size:15px;background:var(--gold);color:var(--on-gold,#161310)}
+#cart-panel .cp-btn.clear{background:transparent;border:1px solid var(--line);color:var(--ink);font-weight:600}
+#cart-panel .cp-close{min-height:44px;margin:4px auto 10px;color:var(--muted)}
+@media (min-width:640px){#cart-overlay{align-items:center;padding:20px}#cart-panel{border-radius:20px;max-height:88vh}#cart-panel .cp-buttons{border-radius:0 0 20px 20px}}
+
+/* ===================== V26.32 · Contraste (claro y oscuro) =====================
+   Regla: ningún texto queda por debajo de 4,5:1 (3:1 en letra grande). Los colores de marca se usan como fondo;
+   como letra se usa --gold-ink (calculado en pre.js) y encima de la marca, --on-gold. */
+:root{--muted:#5f594d}
+.card .c-sub,.social-grid small,.price-note,#pm-sub,.admin-row .ar-sub,.section-head .hint,footer,.team-link,.cp-note,#search-empty,#pm-close,#age-gate .ag-legal,#admin-login-cancel,#admin-panel .admin-note,.admin-empty,.cp-close,#cart-empty .ce-s{color:var(--muted)}
+.pitch strong,.card .c-price,.row-price,#pm-price,footer .foot-brand,.qty-btn,.team-link:hover,.arco-link,.club-consent a,.legal-ref,.legal-details summary::after{color:var(--gold-ink,var(--gold))}
+.cp-btn.send,.club-btn,#pm-add,.cat-chip.active,.cat-chip.active .chip-count,.qty-btn:active,.wifi-panel .wifi-tag,.info-btn.gold,#admin-login-submit,.lang-toggle button[aria-pressed="true"],.loy-btn,.cp-coupon-row button{color:var(--on-gold,#161310)}
+@media (hover:hover){.qty-btn:hover{color:var(--on-gold,#161310)}}
+.dev-credit .dc-btn.wa{background:#0f7a3f;color:#fff}
+.dev-credit .dc-fine{color:#aaa293}
+#cp-coupon-msg.ok,.cp-total-row.disc{color:#17663a}#cp-coupon-msg.bad{color:#a3271b}
+.loy-ej{color:#f3dca3}
+.loy-alt{color:#f3dca3;border-color:#c9963e}
+/* bloque de envío del carrito: el panel es claro (antes tenía estilos de fondo oscuro) */
+#ship-box{border-color:var(--line);color:var(--ink)}
+#ship-box input[type=text],#ship-box input:not([type]),#ship-box select{border-color:var(--line);background:var(--card-bg);color:var(--ink)}
+#ship-box .sh-n{opacity:1;color:var(--muted)}
+#ship-box .sh-err{color:#a3271b}
+@media (prefers-color-scheme: dark){
+  :root{--muted:#b9b1a1}
+  .featured .name{color:#fbfaf7}
+  .legal-details{background:#1f1d1a}
+  .featured .desc{color:#cfc8b8}
+  .club-field label,.promo-banner .pt,.legal-details summary,.legal-details .legal-body h4,.info-panel h2{color:var(--ink)}
+  .club-block .club-sub,.club-consent,.legal-details .legal-body,.info-panel .info-sub,.wifi-panel .wifi-legal,.cp-card .cc-s,#admin-close{color:var(--muted)}
+  .promo-banner .pt strong,.bodega-name{color:var(--vino-ink,#e0808b)}
+  .info-panel.review-panel{background:linear-gradient(160deg,#2a2723,#2f2a22);border-color:#5a4a28}
+  .row.in-cart{background:#332c22}
+  .cp-step{background:#1f1d1a}
+  #cart-panel{--cp-bg:var(--card-bg)}
+  #ship-box .sh-err{color:#ffb4a8}
+  #cp-coupon-msg.ok,.cp-total-row.disc{color:#6fd39b}#cp-coupon-msg.bad{color:#ff9b8f}
+}

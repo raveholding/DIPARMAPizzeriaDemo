@@ -1,0 +1,242 @@
+# 4.22 · F1 · mayorista/minorista: priceResolve, escalones, bultos, acuerdos, crédito con plazo y excepción (demo, bandera encendida)
+from playwright.sync_api import sync_playwright
+errs=[];res=[]
+def chk(c,m):
+    print(('OK   ' if c else 'FALLA ')+m);res.append(bool(c))
+with sync_playwright() as p:
+    b=p.chromium.launch(args=['--no-proxy-server'])
+    pg=b.new_page(viewport={'width':1280,'height':900})
+    pg.on('pageerror',lambda e:errs.append(str(e)[:300]))
+    pg.on('console',lambda m:errs.append(m.text[:200]) if m.type=='error' and 'TUNNEL' not in m.text else None)
+    ev=pg.evaluate
+    pg.goto('file:///tmp/rave/index.html#acceso');pg.wait_for_timeout(600)
+    pg.select_option('#lu',index=0);pg.fill('#lp','1234');pg.click('[data-act=login]');pg.wait_for_timeout(400)
+    ev("location.hash='#panel/caja'");pg.wait_for_timeout(300)
+    if pg.locator('#ap').count():
+        pg.fill('#ap','50000');pg.click('[data-act=openCaja]');pg.wait_for_timeout(300)
+    # ---- 0) demo: bandera encendida con ejemplos rotulados ----
+    chk(ev("wsOn()")==True,'demo: el canal mayorista nace ENCENDIDO')
+    chk(ev("S.cfg.wholesale.example===true && S.customers.some(c=>c.example&&c.channel==='mayorista'&&arcaCuitOk(c.taxid))"),'demo: cliente mayorista de ejemplo con CUIT válido, rotulado ejemplo')
+    chk(ev("S.products.filter(p=>(p.pres||[]).length===3).length>=3 && wsConf().levels.map(l=>l.name).join()==='Display,Fardo,Pallet'"),'demo: productos de ejemplo con Display, Fardo y Pallet; presentaciones configuradas')
+    chk(ev("S.products.every(p=>p.prices===undefined&&p.tiers===undefined&&p.packs===undefined)"),'sin restos del modelo viejo (listas/escalones/bultos)')
+    # ---- datos de prueba propios (precios redondos): Unidad $100 · Display ×6 $90 · Fardo ×24 $80 · Pallet ×480 $70 ----
+    ev("""(()=>{const r=S.rubros.find(r=>r.kind==='rubro'&&!r.age&&!r.alcohol)||S.rubros.find(r=>r.kind==='rubro');
+      const P=(a)=>[{lv:'d',qty:6,unit:9000,barcode:a||''},{lv:'f',qty:24,unit:8000,barcode:''},{lv:'p',qty:480,unit:7000,barcode:''}];
+      S.products.push({id:'wt1',name:'Prod 4 precios',rubro:r.id,price:10000,cost:5000,stock:1500,unit:'u',barcode:'',active:true,menu:false,pres:P()});
+      S.products.push({id:'wt2',name:'Prod codigo',rubro:r.id,price:10000,cost:5000,stock:60,unit:'u',barcode:'',active:true,menu:false,pres:[{lv:'d',qty:6,unit:9000,barcode:'7790001112223'}]});
+      S.products.push({id:'wt3',name:'Prod sin pres',rubro:r.id,price:10000,cost:5000,stock:60,unit:'u',barcode:'',active:true,menu:false});
+      S.products.push({id:'wt4',name:'Prod piso',rubro:r.id,price:10000,cost:5000,stock:60,unit:'u',barcode:'',active:true,menu:false,pres:[{lv:'d',qty:6,unit:9000,barcode:''}],floor:8500});
+      S.customers.push({id:'cwh1',num:910,name:'Mayo',last:'Uno',birth:'1980-01-01',wa:'+5493875550911',consent:{club:true},status:'activo',limit:2000000,secret:'x'.repeat(20),channel:'mayorista',taxid:'20123456786',term:10,zone:'',seller:''});
+      S.customers.push({id:'cwh2',num:911,name:'Sin',last:'Cuit',wa:'+5493875550912',consent:{club:true},status:'activo',limit:2000000,secret:'y'.repeat(20),channel:'mayorista',taxid:'',term:0});
+      S.customers.push({id:'cmin',num:912,name:'Min',last:'Orista',wa:'+5493875550913',consent:{club:true},status:'activo',limit:2000000,secret:'z'.repeat(20),channel:'minorista',taxid:'',term:0});})()""")
+    PR=lambda pid,q,c,ch='mayorista':ev("priceResolve(prod('%s'),%s,{cust:custById('%s'),chan:'%s'})"%(pid,q,c,ch))
+    # ---- 1) precio por volumen: Unidad 1–5 $100 · Display 6–23 $90 · Fardo 24–479 $80 · Pallet 480+ $70 ----
+    def exp(q):
+        t=0
+        for n,u in ((480,7000),(24,8000),(6,9000)):
+            k=q//n;t+=k*n*u;q-=k*n
+        return t+q*10000
+    got=[(PR('wt1',q,'cwh1').get('amt') or PR('wt1',q,'cwh1')['price']*q) for q in (1,5,6,23,24,479,480,1500,13)]
+    chk(got==[exp(q) for q in (1,5,6,23,24,479,480,1500,13)] and exp(23)==212000,'COBRO POR TRAMOS (Unidad $100 · Display ×6 $90 · Fardo ×24 $80 · Pallet ×480 $70): %s'%got)
+    r=PR('wt1',5,'cwh1')
+    chk('Faltan 1 u' in r['missing'] and 'Display' in r['missing'],'avisa qué falta para la presentación siguiente: '+r['missing'])
+    r=PR('wt1',24,'cwh1')
+    chk(r['rule']=='P-f' and r['list']=='Fardo' and 'Fardo' in r['why'],'motivo legible y código de regla: %s · %s'%(r['rule'],r['why']))
+    chk(PR('wt1',480,'cmin','minorista')['price']==10000,'el minorista paga siempre el precio de la unidad (no recibe presentaciones mayoristas)')
+    chk(PR('wt3',100,'cwh1')['price']==10000,'producto sin presentaciones: mayorista paga el precio de venta')
+    # ---- 2) una presentación nunca sube el precio ----
+    ev("prod('wt1').pres[0].unit=12000")
+    chk(PR('wt1',6,'cwh1')['price']==10000,'una presentación con precio mayor que la unidad NO lo sube')
+    ev("prod('wt1').pres[0].unit=9000")
+    # ---- 3) stock por presentación ----
+    chk(ev("wsStockStr(prod('wt1'),1500)")=='3 Pallet + 2 Fardo + 2 Display + 0 u'.replace(' + 0 u','') or True,'(se verifica abajo)')
+    chk(ev("wsStockStr(prod('wt1'),1500)")=='3 Pallet + 2 Fardo + 2 Display' and ev("wsStockStr(prod('wt1'),509)")=='1 Pallet + 1 Fardo + 5 u' and ev("wsStockStr(prod('wt1'),5)")=='','stock en presentaciones: 1500 u = 3 Pallet + 2 Fardo + 2 Display; 509 = 1 Pallet + 1 Fardo + 5 u')
+    # ---- 4) mayorista exige CUIT ----
+    r=PR('wt1',100,'cwh2')
+    chk(r['price']==10000 and r['warn']=='cuit','mayorista con cliente sin CUIT cae a precio minorista y avisa')
+    # ---- 5) acuerdo especial: gana sobre las presentaciones; vencido no rige ----
+    ev("S.agreements.push({id:'agT',cust:'cwh1',pid:'wt1',price:9500,pct:0,from:'',to:'',active:true,by:'t',ts:Date.now()})")
+    r=PR('wt1',480,'cwh1')
+    chk(r['price']==9500 and r['rule']=='ACU','acuerdo vigente gana sobre la presentación (480 u → $95, no $70)')
+    ev("S.agreements.find(a=>a.id==='agT').to='2020-01-01'")
+    chk(PR('wt1',480,'cwh1')['price']==7000,'acuerdo vencido no rige: vuelve el precio por volumen')
+    ev("S.agreements.find(a=>a.id==='agT').to='';S.agreements.find(a=>a.id==='agT').active=false")
+    chk(PR('wt1',480,'cwh1')['price']==7000,'acuerdo desactivado no rige')
+    # ---- 6) piso de precio ----
+    ev("pos.lines=[];pos.cust='cwh1';pos.chanSet=null;A.padd({dataset:{id:'wt4'}});")
+    ev("lineEdit(0,'price','80');")  # $80 manual < piso $85
+    r=ev("commitSale('efectivo',false,'local',pos.lines,{custId:'cwh1',ws:{chan:'mayorista'}})")
+    chk(r.get('err') and 'piso' in r['err'],'precio bajo el piso se rechaza: '+str(r.get('err'))[:90])
+    ev("pos.lines[0].flrOk=1")
+    r=ev("(()=>{const r=commitSale('efectivo',false,'local',pos.lines,{custId:'cwh1',ws:{chan:'mayorista'}});return{err:r.err||'',tot:r.sale&&r.sale.total,rule:r.sale&&r.sale.items[0].lr}})()")
+    chk(not r['err'] and r['tot']==8000 and r['rule']=='MAN','con autorización del supervisor (motivo) se vende: $80, regla MAN')
+    ev("pos.lines=[]")
+    # ---- 7) mayorista sin cliente / sin CUIT; club ----
+    ev("pos.lines=[];pos.cust='';A.padd({dataset:{id:'wt1'}})")
+    r=ev("(()=>{const r=commitSale('efectivo',false,'local',pos.lines,{custId:'',ws:{chan:'mayorista'}});return r.err?{err:r.err}:{t:r.sale.total,w:r.sale.wch,p:r.sale.items[0].price,b:prod('wt1').price}})()")
+    chk(not r.get('err') and r['w']=='minorista' and r['p']==r['b'],'V26.34 canal mayorista sin cliente: se vende como consumidor final al precio por unidad (%s)'%r)
+    ev("pos.lines=[];pos.cust='';A.padd({dataset:{id:'wt1'}})")
+    r=ev("(()=>{const r=commitSale('efectivo',false,'local',pos.lines,{custId:'cwh2',ws:{chan:'mayorista'}});return r.err?{err:r.err}:{w:r.sale.wch,p:r.sale.items[0].price,b:prod('wt1').price}})()")
+    chk(not r.get('err') and r['w']=='minorista' and r['p']==r['b'],'V26.34 cliente sin CUIT: se vende al precio por unidad, sin bloquear (%s)'%r)
+    ev("pos.lines=[];pos.cust='';A.padd({dataset:{id:'wt1'}})")
+    r=ev("commitSale('efectivo',false,'local',pos.lines,{custId:'cwh1',coupon:'BIENVENIDA10',ws:{chan:'mayorista'}})")
+    chk(r.get('err') and 'cupones' in r['err'].lower(),'cupón del Club en venta mayorista: rechazado')
+    ev("pos.lines=[]")
+    # ---- 8) Vender por la pantalla: las presentaciones están a la vista y se suman con un toque ----
+    ev("location.hash='#panel/vender'");pg.wait_for_timeout(400)
+    ev("pos.lines=[];pos.cust='';pos.chanSet=null;pos.mix=false;pos.pays=[];pos.method='efectivo';pos.recv='';posCart()");pg.wait_for_timeout(150)
+    pg.fill('#psearch','Prod 4 precios');pg.wait_for_timeout(200)
+    chk(pg.locator('#pgrid .pchips').count()==0,'canal minorista: la grilla NO muestra presentaciones')
+    ev("pos.cust='cwh1';posCart()");pg.wait_for_timeout(250)
+    txt=pg.inner_text('#pgrid')
+    chk(pg.locator('#pgrid .pchips [data-lv=d]').count()==1 and pg.locator('#pgrid .pchips [data-lv=f]').count()==1 and pg.locator('#pgrid .pchips [data-lv=p]').count()==1,'canal mayorista: la grilla muestra Display, Fardo y Pallet del producto')
+    chk('$ 90' in txt.replace(' ',' ') or '90,00' in txt,'cada presentación muestra su precio por unidad y de la presentación')
+    pg.click('#pgrid [data-act=wsAddPres][data-id=wt1][data-lv=f]');pg.wait_for_timeout(250)
+    chk(ev("pos.lines.length")==1 and ev("pos.lines[0].qty")==24 and ev("pos.lines[0].price")==8000 and ev("posTotal()")==192000,'un toque en «+ Fardo» agrega 24 u a $80 = $1.920')
+    pg.click('#pcart [data-act=wsPack][data-k=p]');pg.wait_for_timeout(250)
+    chk(ev("pos.lines[0].qty")==504 and ev("pos.lines[0].amt")==3552000,'«+ Pallet» en la línea suma 480 u: 480 a $70 + 24 a $80 = $35.520 (por tramos)')
+    chk('Pallet' in pg.inner_text('#pcart') and 'Fardo' in pg.inner_text('#pcart'),'la línea explica la presentación aplicada')
+    ev("lineEdit(0,'qty','5')");pg.wait_for_timeout(200)
+    chk(ev("pos.lines[0].price")==10000,'bajar la cantidad vuelve al precio de la unidad')
+    ev("lineEdit(0,'qty','6')");pg.wait_for_timeout(200)
+    chk('Fardo' in pg.inner_text('#pcart') and 'Faltan 18' in pg.inner_text('#pcart'),'muestra cuánto falta para la siguiente presentación')
+    ev("pos.lines=[]");ev("pos.cust='cwh1';posCart();A.wsAddPres({dataset:{id:'wt2',lv:'d'}});A.wsAddPres({dataset:{id:'wt2',lv:'d'}})");pg.wait_for_timeout(250)
+    chk(ev("pos.lines[0].price")==9000 and ev("posTotal()")==108000,'2 Display de 6 = 12 u de Prod codigo = $1.080')
+    st0=ev("prod('wt2').stock")
+    pg.keyboard.press('F12');pg.wait_for_timeout(300)
+    if pg.locator('[data-act=rcvJusto]').count(): pg.click('[data-act=rcvJusto]');pg.wait_for_timeout(100)  # V26.50: importe recibido obligatorio en efectivo
+    pg.click('#modal-root [data-m=ok]');pg.wait_for_timeout(500)
+    s=ev("S.sales.slice(-1)[0]")
+    chk(s['total']==108000 and s['wch']=='mayorista' and s['items'][0]['lr']=='P-d' and s['items'][0]['ll']=='Display','venta guardada: total, canal y regla aplicada en la línea: %s · %s'%(s['items'][0]['lr'],s['items'][0]['ll']))
+    chk(round(st0-ev("prod('wt2').stock"),3)==12,'12 unidades base descontadas del stock')
+    ev("document.querySelectorAll('#modal-root .ov').forEach(o=>o.remove())")
+    # ---- 9) lector: el código de barras de la presentación suma la presentación ----
+    ev("pos.lines=[];pos.cust='cwh1';posCart();")
+    chk(ev("addByCode('7790001112223')") and ev("pos.lines[0].qty")==6,'el código propio del Display agrega 6 unidades')
+    ev("pos.lines=[];pos.cust=''")
+    # ---- 11) crédito: límite, plazo, mora y excepción de un solo uso ----
+    ev("S.sales=S.sales.filter(s=>s.cust!=='cwh1');S.fiadoPays=S.fiadoPays.filter(p=>p.cust!=='cwh1')")
+    ev("pos.lines=[];pos.cust='cwh1';A.padd({dataset:{id:'wt1'}});lineEdit(0,'qty','10')")   # 10 u a $90 = $900
+    FI="commitSale('fiado',false,'local',pos.lines,{custId:'cwh1',ws:{chan:'mayorista'}})"
+    r=ev("(()=>{const r="+FI+";return{err:r.err||'',due:r.sale&&r.sale.due,term:r.sale&&r.sale.term,ts:r.sale&&r.sale.ts}})()")
+    chk(not r['err'] and r['term']==10 and abs(r['due']-r['ts']-10*86400000)<5,'venta a cuenta corriente guarda el vencimiento (plazo 10 días)')
+    t0=ev("Date.now()")
+    ev("window.__now=()=>%d"%(t0+9*86400000))
+    ev("pos.lines=[];pos.cust='cwh1';A.padd({dataset:{id:'wt1'}});lineEdit(0,'qty','10')")
+    r=ev("("+FI+").err||''")
+    chk(r=='','día 9 (dentro del plazo): sigue pudiendo comprar a cuenta corriente '+r[:60])
+    ev("window.__now=()=>%d"%(t0+12*86400000))
+    ev("pos.lines=[];pos.cust='cwh1';A.padd({dataset:{id:'wt1'}});lineEdit(0,'qty','10')")
+    r=ev("(()=>{const r="+FI+";return{err:r.err||'',credit:!!r.credit}})()")
+    chk('vencido' in r['err'] and r['credit'],'día 12 (documentos vencidos): se bloquea la cuenta corriente: '+r['err'][:90])
+    r=ev("commitSale('efectivo',false,'local',pos.lines,{custId:'cwh1',ws:{chan:'mayorista'}}).err||''")
+    chk(r=='','con documentos vencidos puede seguir comprando al contado '+r[:60])
+    ev("pos.lines=[];pos.cust='cwh1';A.padd({dataset:{id:'wt1'}});lineEdit(0,'qty','10')")
+    ev("user={name:'Mostrador',role:'mostrador'}")
+    chk(ev("can('credit_ov')")==False,'el mostrador no tiene permiso de excepción de crédito')
+    n0=ev("S.creditOv.length");ev("A.wsCredOv({dataset:{id:'cwh1',need:'94000'}})");pg.wait_for_timeout(200)
+    chk(ev("S.creditOv.length")==n0 and pg.locator('#modal-root .dlg').count()==0,'sin permiso no se abre ni se crea la excepción')
+    ev("user={name:'ADMIN',role:'admin'}")
+    ev("A.wsCredOv({dataset:{id:'cwh1',need:'94000'}})");pg.wait_for_timeout(250)
+    pg.fill('#co-w','Cliente histórico, paga el viernes');pg.click('#modal-root [data-m=ok]');pg.wait_for_timeout(300)
+    chk(ev("S.creditOv.length")==n0+1 and ev("S.creditOv.slice(-1)[0].reason").startswith('Cliente histórico'),'excepción creada con motivo, monto y vigencia')
+    chk(ev("S.audit.some(e=>e.action==='EXCEPCION_CREDITO')"),'la excepción queda en auditoría')
+    r=ev("(()=>{const r="+FI+";return{err:r.err||'',cov:r.sale&&r.sale.cov}})()")
+    chk(not r['err'] and r['cov'],'con la excepción vigente se autoriza la venta a cuenta corriente '+r['err'][:60])
+    chk(ev("S.creditUse.length")>=1 and ev("S.audit.some(e=>e.action==='EXCEPCION_CREDITO_USO')"),'la excepción se consume (queda el uso y la auditoría)')
+    ev("pos.lines=[];pos.cust='cwh1';A.padd({dataset:{id:'wt1'}});lineEdit(0,'qty','10')")
+    r=ev("("+FI+").err||''")
+    chk('vencido' in r,'la excepción es de un solo uso: la segunda venta vuelve a bloquearse')
+    deuda=ev("debtOf('cwh1')")
+    ev("fiadoPay('cwh1',%d,'transferencia')"%deuda)
+    r=ev("("+FI+").err||''")
+    chk(r=='' ,'al saldar la deuda vencida se destraba la cuenta corriente: '+r[:80])
+    # ---- 11) límite de crédito sigue igual (mensaje de siempre) ----
+    ev("window.__now=undefined;S.sales=S.sales.filter(s=>s.cust!=='cwh1');S.fiadoPays=[];S.creditOv=[];S.creditUse=[]")
+    ev("S.customers.find(c=>c.id==='cwh1').limit=500000")
+    ev("pos.lines=[];pos.cust='cwh1';A.padd({dataset:{id:'wt1'}});lineEdit(0,'qty','100')")   # 100 u a $70 = $7.000 > límite $5.000
+    r=ev("("+FI+").err||''")
+    chk('Supera el límite de crédito' in r,'el límite de crédito se respeta: '+r[:80])
+    # ---- 12) bandera apagada: comportamiento de siempre ----
+    ev("S.cfg.wholesale.on=false;pos.lines=[];pos.cust='cwh1';A.padd({dataset:{id:'wt1'}});lineEdit(0,'qty','100')")
+    chk(ev("pos.lines[0].price")==10000,'apagado: precio L1 (sin lista ni escalón)')
+    r=ev("commitSale('efectivo',false,'local',pos.lines,{custId:'cwh1'}).sale.items[0]")
+    chk(r['price']==10000 and not r.get('lr'),'apagado: la venta no lleva datos de lista ni regla')
+    ev("S.customers.find(c=>c.id==='cwh1').limit=0")
+    r=ev("commitSale('fiado',false,'local',pos.lines,{custId:'cwh1'}).err||''")
+    chk(r=='El cliente no tiene límite de crédito asignado.','apagado: mensaje de crédito idéntico al de siempre')
+    ev("S.cfg.wholesale.on=true;pos.lines=[];pos.cust=''")
+    # ---- 13) alta/edición del producto: se cargan los 4 precios ahí mismo ----
+    ev("location.hash='#panel/inventario'");pg.wait_for_timeout(400)
+    ev("A.pedit({dataset:{id:''}})");pg.wait_for_timeout(300)
+    chk(pg.locator('#wp-box').count()==1 and pg.locator('#wp-q-d').count()==1 and pg.locator('#wp-q-f').count()==1 and pg.locator('#wp-q-p').count()==1,'el alta de producto muestra Unidad, Display, Fardo y Pallet')
+    pg.fill('#pm-n','Cerveza 4P');pg.select_option('#pm-r',index=1);pg.fill('#pm-f','100');pg.fill('#pm-st','0')
+    pg.fill('#wp-q-d','6');pg.fill('#wp-t-d','540');pg.wait_for_timeout(100)
+    chk(pg.input_value('#wp-u-d').startswith('90'),'Display ×6 a $540 completa solo el precio por unidad: $'+pg.input_value('#wp-u-d'))
+    pg.fill('#wp-q-f','24');pg.fill('#wp-u-f','80');pg.wait_for_timeout(100)
+    chk(pg.input_value('#wp-t-f').startswith('1.920') or pg.input_value('#wp-t-f').startswith('1920'),'Fardo ×24 a $80 por unidad completa el precio del fardo: $'+pg.input_value('#wp-t-f'))
+    pg.fill('#wp-q-p','480');pg.fill('#wp-u-p','90');pg.click('#modal-root [data-m=ok]');pg.wait_for_timeout(250)
+    chk('cuesta más por unidad' in pg.inner_text('#modal-root'),'Pallet más caro por unidad que el Fardo se rechaza: '+pg.inner_text('#modal-root .err, #modal-root [role=alert]')[:80] if pg.locator('#modal-root .err, #modal-root [role=alert]').count() else 'Pallet más caro que el Fardo se rechaza')
+    pg.fill('#wp-u-p','70');pg.fill('#wp-q-d','');pg.click('#modal-root [data-m=ok]');pg.wait_for_timeout(250)
+    chk('cuántas unidades' in pg.inner_text('#modal-root'),'precio sin cantidad se rechaza (falta cuántas unidades trae)')
+    pg.fill('#wp-q-d','6');pg.fill('#wp-u-d','90');pg.click('#modal-root [data-m=ok]');pg.wait_for_timeout(350)
+    P=ev("(S.products.find(p=>p.name==='Cerveza 4P')||{}).pres")
+    chk(P==[{'lv':'d','qty':6,'unit':9000,'barcode':''},{'lv':'f','qty':24,'unit':8000,'barcode':''},{'lv':'p','qty':480,'unit':7000,'barcode':''}],'se guardan las 3 presentaciones con sus precios: %s'%P)
+    chk(ev("S.audit.some(e=>e.action==='PRESENTACIONES_PRODUCTO'&&e.detail.includes('Cerveza 4P'))"),'el cambio de presentaciones queda en auditoría')
+    # ---- 14) inventario: columna de precios y stock por presentación; ajuste por presentación ----
+    pg.wait_for_timeout(200)
+    tbl=pg.inner_text('table.inv')
+    chk('precios por presentación' in tbl.lower() and 'Fardo' in tbl and 'Pallet' in tbl,'la tabla de inventario muestra los precios por presentación')
+    sx=ev("wsStockStr(prod('wt1'),prod('wt1').stock)")
+    chk(sx!='' and sx in tbl,'el stock del inventario se muestra también en presentaciones: '+sx)
+    ev("A.padj({dataset:{id:'wt1'}})");pg.wait_for_timeout(250)
+    pg.select_option('#aj-u',label='Fardo (24 u)');pg.fill('#aj-d','2');pg.fill('#aj-m','Ingreso de proveedor');pg.wait_for_timeout(100)
+    chk('48' in pg.inner_text('#aj-eq'),'el ajuste por presentación muestra su equivalente en unidades')
+    s0=ev("prod('wt1').stock");pg.click('#modal-root [data-m=ok]');pg.wait_for_timeout(300)
+    chk(ev("prod('wt1').stock")==s0+48,'cargar 2 Fardos suma 48 unidades de stock')
+    # permisos: el mostrador no edita precios por presentación
+    ev("user={name:'Mostrador',role:'mostrador'}");ev("A.pedit({dataset:{id:'wt1'}})");pg.wait_for_timeout(250)
+    chk(pg.locator('#wp-box').count()==0,'sin permiso de listas de precio el bloque de presentaciones no se muestra')
+    pg.click('#modal-root [data-m=cancel]') if pg.locator('#modal-root [data-m=cancel]').count() else None
+    ev("document.querySelectorAll('#modal-root .ov').forEach(o=>o.remove());user={name:'ADMIN',role:'admin'}")
+    # ---- 15) ficha del cliente ----
+    ev("location.hash='#panel/clientes'");pg.wait_for_timeout(400)
+    ev("A.cuEdit({dataset:{id:'cwh1'}})");pg.wait_for_timeout(300)
+    chk(pg.locator('#fc-tx').count()==1 and pg.locator('#wc-ch').count()==1 and pg.locator('#wc-li').count()==0,'la ficha muestra el bloque Mayorista y crédito (sin lista de precios)')
+    pg.fill('#fc-tx','20123456780');pg.click('#modal-root [data-m=ok]');pg.wait_for_timeout(250)
+    chk(ev("custById('cwh1').taxid")=='20123456786','CUIT con dígito verificador inválido se rechaza')
+    pg.fill('#fc-tx','20123456786');pg.fill('#wc-tm','30');pg.fill('#wc-zn','Zona Norte')
+    pg.click('#modal-root [data-m=ok]');pg.wait_for_timeout(300)
+    chk(ev("custById('cwh1').term")==30 and ev("custById('cwh1').zone")=='Zona Norte' and ev("S.audit.some(e=>e.action==='CLIENTE_MAYORISTA')"),'plazo/zona guardados y auditados')
+    # ---- 16) configuración: presentaciones de venta ----
+    ev("location.hash='#panel/config'");pg.wait_for_timeout(500)
+    chk(pg.locator('#ws-card').count()==1 and pg.locator('#ws-on').is_checked(),'Configuración muestra la tarjeta Mayorista y minorista (activa)')
+    chk(pg.locator('#ws-card table').count()==0 or 'Impuestos' not in pg.inner_text('#ws-card'),'ya no aparece la tabla Lista/Nombre/Activa/Impuestos/Desde/Hasta')
+    chk(pg.locator('#ws-ln-d').count()==1 and pg.locator('#ws-ln-f').count()==1 and pg.locator('#ws-ln-p').count()==1,'Configuración permite renombrar Display, Fardo y Pallet')
+    ev("A.wsLvAdd()");pg.wait_for_timeout(250);pg.fill('#lv-n','Media caja');pg.click('#modal-root [data-m=ok]');pg.wait_for_timeout(300)
+    chk(ev("wsConf().levels.map(l=>l.name).join()")=='Display,Fardo,Pallet,Media caja','se puede agregar otra presentación (Media caja)')
+    ev("A.wsLvAdd()");pg.wait_for_timeout(250);pg.fill('#lv-n','fardo');pg.click('#modal-root [data-m=ok]');pg.wait_for_timeout(250)
+    chk('Ya existe' in pg.inner_text('#modal-root'),'no se admiten nombres repetidos')
+    ev("document.querySelectorAll('#modal-root .ov').forEach(o=>o.remove())")
+    ev("A.wsLvDel({dataset:{id:'f'}})");pg.wait_for_timeout(250)
+    chk(ev("wsConf().levels.some(l=>l.id==='f')"),'no se puede quitar una presentación que hay productos usando')
+    xid=ev("wsConf().levels.find(l=>l.name==='Media caja').id")
+    ev("A.wsLvDel({dataset:{id:'%s'}})"%xid);pg.wait_for_timeout(250);pg.click('#modal-root [data-m=ok]');pg.wait_for_timeout(300)
+    chk(not ev("wsConf().levels.some(l=>l.name==='Media caja')"),'una presentación sin uso se puede quitar')
+    # ---- 17) migración del modelo anterior ----
+    ev("(()=>{S.cfg.wholesale.lists=[{id:'L2'}];const q=S.products.find(p=>p.id==='wt3');q.prices={L2:1};q.tiers=[{}];q.packs=[{}];wsMigrate(S);})()")
+    chk(ev("S.cfg.wholesale.lists===undefined && prod('wt3').prices===undefined && prod('wt3').tiers===undefined && prod('wt3').packs===undefined"),'datos del modelo anterior (listas, escalones, bultos) se limpian al cargar')
+    # ---- 18) venta mixta por tramos de punta a punta: 13 u de wt1 (Display ×6 $90) = 12 a $90 + 1 a $100 = $1.180 ----
+    ev("location.hash='#panel/vender'");pg.wait_for_timeout(400)
+    ev("pos.lines=[];pos.cust='cwh1';pos.chanSet=null;A.padd({dataset:{id:'wt1'}});lineEdit(0,'qty','13')");pg.wait_for_timeout(150)
+    chk(ev("posTotal()")==118000 and ev("pos.lines[0].amt")==118000,'ticket: 13 u mayorista = $1.180 por tramos (12 a $90 + 1 a $100)')
+    st0=ev("prod('wt1').stock")
+    r=ev("(()=>{const r=commitSale('efectivo',false,'local',pos.lines,{custId:'cwh1',ws:{chan:'mayorista'}});return r.err?{err:r.err}:{t:r.sale.total,it:r.sale.items.map(i=>[i.qty,i.price,i.lr])}})()")
+    chk(r.get('t')==118000 and r['it']==[[12,9000,'P-d'],[1,10000,'L1']] ,'la venta guarda renglones exactos qty×precio: %s'%r)
+    chk(ev("prod('wt1').stock")==st0-13,'el stock baja 13 u (suma de los tramos)')
+    chk(ev("S.sales.slice(-1)[0].items.every(i=>Math.round(i.qty*i.price)===lineTotal(i))"),'cada renglón guardado cumple cantidad × precio = importe')
+    ev("pos.lines=[];pos.cust='';A.padd({dataset:{id:'wt1'}});lineEdit(0,'qty','13')");pg.wait_for_timeout(100)
+    chk(ev("posTotal()")==130000,'minorista: 13 u siguen a $100 = $1.300 (sin cambios)')
+    chk(not errs,'sin errores de consola: '+str(errs[:3]))
+    print('%d OK / %d FALLAN de %d'%(sum(res),len(res)-sum(res),len(res)))
+    b.close()
