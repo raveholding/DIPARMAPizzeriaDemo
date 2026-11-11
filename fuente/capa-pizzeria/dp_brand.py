@@ -90,6 +90,9 @@ html:not([data-theme=dark]) .dp-table .sm.mut{color:#4b5563}
 .cfg-hit{background:color-mix(in srgb,var(--gold) 22%,transparent);border-radius:6px;box-shadow:0 0 0 3px color-mix(in srgb,var(--gold) 22%,transparent)}
 @media (prefers-reduced-motion:no-preference){.cfg-chev{transition:transform .18s ease}.cfg-card.open .cfg-body{animation:dpIn .22s ease both}}
 @media (max-width:900px){.cfg-grid{grid-template-columns:minmax(0,1fr)}.cfg-nav{position:static;flex-direction:row;overflow-x:auto;padding-bottom:.3rem}.cfg-sec{flex:0 0 auto;width:auto}.cfg-sec small{display:none}.cfg-more{display:none}}
+#side-scrim{position:fixed;inset:0;z-index:29;background:rgba(0,0,0,.5);display:flex;align-items:flex-start;justify-content:flex-end;padding:.8rem}#side-scrim[hidden]{display:none}
+#side-x{background:#fff;color:#111;border:0;min-height:44px;box-shadow:0 6px 20px rgba(0,0,0,.35)}body.side-lock{overflow:hidden}
+@media (prefers-reduced-motion:no-preference){#side-scrim:not([hidden]){animation:dpFd .2s ease both}}@keyframes dpFd{from{opacity:0}to{opacity:1}}
 @keyframes dpIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}@keyframes dpUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion:reduce){.dp-table:hover{transform:none}.dp-apb i{transition:none}}
 '''

@@ -49,6 +49,9 @@ cd fuente && python3 build.py pizza ../index.html
 ```
 Pruebas en navegador real (`fuente/capa-pizzeria/pruebas/`): `dp1.py` (carta de la mesa → mozo → caja → cocina → cobro con descuento de insumos; roles y asistente), `dp2.py` (delivery, PedidosYa, rendición, circuito en vivo), `dp3_auditoria.py` (axe-core WCAG 2 A/AA, objetivos táctiles y desbordes a 360 px, en claro y oscuro) `dp4_teclado_seguridad.py` (teclado, canal entre pestañas, límites de la carta) y `dp5_config_logo.py` (acceso por el logo y Configuración dinámica).
 
+## Corrección V27.8 · menú lateral en celular y tablet
+En pantallas de hasta 900 px, al abrir el menú con ☰ el panel tapaba el botón y no había forma de cerrarlo (sólo eligiendo una pantalla). Ahora se cierra con **✕ Cerrar menú**, tocando afuera (fondo oscuro) o con **Esc**, y ☰ lo vuelve a abrir siempre. Prueba: `dp6_menu_movil.py`.
+
 ## Configuración dinámica V27.7 (11/11/2026)
 La pantalla de Configuración pasó de una columna de unos 6.500 px a un panel de unos 1.000 px:
 - **Buscador** «¿Qué querés cambiar?» (tecla `/`): filtra por título, etiquetas y ayudas, sin importar tildes, y resalta el campo encontrado.

@@ -284,6 +284,17 @@ setInterval(()=>{if(!isPizzaBuild()||!S||!S.dp)return;$$('[data-dpcd]').forEach(
  try{const D=S.dp;if(D.py.demoFeed&&user&&now()-dpLastFeed>45000){dpLastFeed=now();dpPyNew();dpCommit();}}catch(e){}},1000);
 /* ---------- teclado: Enter y Espacio activan cualquier control con data-act que no sea un botón nativo ---------- */
 if(isPizzaBuild())document.addEventListener('keydown',e=>{if(e.key!=='Enter'&&e.key!==' ')return;const el=e.target;if(!el||!el.matches||!el.matches('[data-act][tabindex],[data-act][role=tab],[data-act][role=button]'))return;if(el.matches('button,a[href],input,select,textarea'))return;e.preventDefault();el.click();});
+/* ---------- menú lateral en pantallas angostas (≤ 900 px): al abrirse tapaba el botón ☰ y no había cómo cerrarlo.
+   Ahora: fondo oscuro que cierra al tocarlo, botón «✕ Cerrar menú» siempre visible, Esc, y ☰ vuelve a abrir. ---------- */
+function sideSync(){const sd=$('#side');if(!sd)return;const open=sd.classList.contains('open')&&matchMedia('(max-width:900px)').matches;let sc=$('#side-scrim');
+ if(!sc){sc=document.createElement('div');sc.id='side-scrim';sc.hidden=true;sc.innerHTML='<button type="button" class="btn" id="side-x" aria-label="Cerrar menú">✕ Cerrar menú</button>';document.body.appendChild(sc);
+  sc.addEventListener('click',e=>{if(e.target===sc||e.target.closest('#side-x'))sideClose(true);});}
+ sc.hidden=!open;document.body.classList.toggle('side-lock',open);const b=$('#burger');if(b){b.setAttribute('aria-expanded',String(open));b.setAttribute('aria-controls','side');}}
+function sideClose(focusBurger){const sd=$('#side');if(sd)sd.classList.remove('open');sideSync();if(focusBurger){const b=$('#burger');if(b)b.focus();}}
+if(typeof A!=='undefined'){A.burger=()=>{const sd=$('#side');if(!sd)return;sd.classList.toggle('open');sideSync();if(sd.classList.contains('open')){const f=sd.querySelector('a.on,a[data-act],button');if(f)f.focus({preventScroll:true});}};}
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){const sd=$('#side');if(sd&&sd.classList.contains('open')&&!$('#modal-root .ov')){sideClose(true);}}});
+try{const mo=new MutationObserver(()=>sideSync());const hook=()=>{const sd=$('#side');if(sd){mo.observe(sd,{attributes:true,attributeFilter:['class']});sideSync();}else setTimeout(hook,300);};hook();
+ matchMedia('(max-width:900px)').addEventListener('change',sideSync);}catch(e){}
 /* ---------- integración con la navegación, el Resumen, los avisos y la campana ---------- */
 if(isPizzaBuild()){
  const sec='Salón y cocina';UX_SEC_ORDER.splice(1,0,sec);
