@@ -41,7 +41,9 @@ if V=='cliente':
 head=head.replace('<style>',cfg+'<style>',1)
 parts=['p2-core.js','p2b-sort.js','p2c-ux.js','p3-ops.js','p3b-pos.js','p3p-payadj.js','p3n-posquick.js','p3c-cash.js','p3q-cortes.js','p3f-transfers.js','p3g-paydetail.js','p3h-expediente.js','p3i-rubcash.js','p3j-combos.js','p3k-owner.js','p3l-kini.js','p3o-solo.js','p3m-payacc.js','p3d-assist.js','p3e-saledetail.js','p3r-oper.js','p6-loyalty.js','p6c-custadmin.js','p6d-cardportable.js','p6e-wallet.js','p6b-wholesale.js','p6f-credito.js','p6g-wacliente.js','p6h-fidel.js','p6i-fiscal.js','p6j-crm.js','p4-mods.js','p4f-rrhh.js','p4c-compras.js','p4d-compras-ui.js','p4e-factura.js','p4b-online.js','p7a-dash.js','p7b-charts.js','p7c-scale.js','p7-devices.js','p8-legal.js','p9-cloud.js','p9b-arca.js','p9c-tiendanube.js','p5c-menusec.js','p5b-store.js','p5d-cscreen.js','p5-menu-boot.js']
 parts=[p for p in parts if os.path.exists(p)]
-if PROFILE=='pizza': parts.insert(parts.index('p5c-menusec.js'),'p11-pizza.js')
+if PROFILE=='pizza':
+    i=parts.index('p5c-menusec.js')
+    parts[i:i]=['p11a-pizza-datos.js','p11b-pizza-circuito.js','p11c-pizza-pantallas.js']
 # V26.37 · Centro Inteligente (p10-centro.js): módulo aislado.
 # V26.40: aprobado por el dueño para Almacén RAVE (apagado por defecto; lo activa el administrador). Kini no lo lleva salvo CI=1.
 # raveV2 (solo) y Kini no llevan el Centro Inteligente: es de raveV3 y de Almacén RAVE (apagado)

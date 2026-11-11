@@ -37,7 +37,7 @@ html[data-theme=dark] .dp-st{color:color-mix(in srgb,var(--c) 55%,#fff)}
 .dp-tables{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:.7rem;margin:.8rem 0}.dp-tables.sm{grid-template-columns:repeat(auto-fill,minmax(120px,1fr))}
 .dp-table{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:.15rem;text-align:left;border:2px solid color-mix(in srgb,var(--c) 55%,var(--line));background:color-mix(in srgb,var(--c) 9%,var(--card));border-radius:18px;padding:.7rem .8rem;cursor:pointer;color:inherit;font:inherit;min-height:110px}
 .dp-table.barra{border-radius:40px 40px 18px 18px}.dp-table:hover{transform:translateY(-1px)}
-.dp-tn{position:absolute;right:.6rem;top:.5rem;font:800 1.4rem/1 Georgia,serif;color:var(--c);opacity:.7}.dp-ts{font-weight:700;color:var(--c);font-size:.85rem}html[data-theme=dark] .dp-ts{color:color-mix(in srgb,var(--c) 55%,#fff)}.dp-tt{font-weight:800}
+.dp-tn{position:absolute;right:.6rem;top:.5rem;font:800 1.4rem/1 Georgia,serif;color:color-mix(in srgb,var(--c) 70%,#000)}html[data-theme=dark] .dp-tn{color:color-mix(in srgb,var(--c) 45%,#fff)}.dp-ts{font-weight:700;color:var(--c);font-size:.85rem}html[data-theme=dark] .dp-ts{color:color-mix(in srgb,var(--c) 55%,#fff)}.dp-tt{font-weight:800}
 .dp-board{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.7rem;align-items:start}@media (max-width:1100px){.dp-board{grid-template-columns:repeat(2,minmax(0,1fr))}}@media (max-width:640px){.dp-board{grid-template-columns:1fr}}
 .dp-col h3{border-bottom:3px solid var(--c);padding-bottom:.3rem;margin:.2rem 0 .6rem}
 .dp-cad{border-top:1px solid var(--line);padding:.5rem 0;display:flex;flex-direction:column;gap:.2rem}
@@ -56,6 +56,19 @@ html[data-theme=dark] .dp-st{color:color-mix(in srgb,var(--c) 55%,#fff)}
 .dp-ap{position:fixed;right:1rem;bottom:1rem;z-index:80;width:min(360px,calc(100% - 2rem));background:#0b0a0a;color:#fff;border-radius:16px;padding:.9rem 1rem;box-shadow:0 14px 40px rgba(0,0,0,.45);display:flex;flex-direction:column;gap:.4rem;border:1px solid #ff7f00}
 .dp-ap span{font-size:.92rem}.dp-apb{height:6px;border-radius:99px;background:#333}.dp-apb i{display:block;height:100%;background:#ff7f00;border-radius:99px;transition:width .4s}
 .dp-hoy{margin:1rem 0;border-top:4px solid var(--gold)}
+/* auditoría V27.6: contraste AA de los estados, objetivos táctiles de 44 px, grillas que no desbordan, movimiento sutil */
+html:not([data-theme=dark]) .dp-st,html:not([data-theme=dark]) .dp-ts{color:color-mix(in srgb,var(--c) 68%,#000)}
+html:not([data-theme=dark]) .dp-table .sm.mut{color:#4b5563}
+.btn.sm{min-height:44px}html[data-theme=dark] .dp-eta.ok{color:#0b0a0a}#view label.chk{min-height:44px;display:flex;align-items:center;gap:.5rem}.dp-click td{height:44px}@media (max-width:640px){.dp-rt thead{display:none}.dp-rt,.dp-rt tbody{display:block}.dp-rt tr{display:grid;grid-template-columns:auto 1fr;gap:.35rem .6rem;padding:.7rem 0;border-bottom:1px solid var(--line)}.dp-rt td{border:0!important;padding:0!important;text-align:left!important}.dp-rt td:nth-child(n+3){grid-column:2}.dp-rt td:first-child{font-weight:800}}.ux-tabs a,.ux-tabs button{min-height:44px;display:inline-flex;align-items:center}
+.dp-h{font-size:1.05rem;margin:.9rem 0 .5rem}.dp-col .dp-h{margin-top:.2rem}
+.dp-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.dp-21,.dp-12{display:grid;gap:.8rem;align-items:start;grid-template-columns:minmax(0,2fr) minmax(0,1fr)}.dp-12{grid-template-columns:minmax(0,1fr) minmax(0,2fr)}
+@media (max-width:900px){.dp-21,.dp-12{grid-template-columns:minmax(0,1fr)}}
+.dp-lots{grid-template-columns:repeat(auto-fill,minmax(min(260px,100%),1fr))}
+[data-act][tabindex]:focus-visible,.dp-table:focus-visible,.dp-fs:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+@media (prefers-reduced-motion:no-preference){.dp-ord,.dp-table,.dp-fs,.dp-lote{animation:dpIn .28s ease both}.dp-table,.dp-fs,.dp-pk{transition:transform .15s ease,box-shadow .15s ease}.dp-fs:hover,.dp-pk:hover{transform:translateY(-2px)}
+ .dp-ap{animation:dpUp .3s ease both}}
+@keyframes dpIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}@keyframes dpUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion:reduce){.dp-table:hover{transform:none}.dp-apb i{transition:none}}
 '''
 def brand(h):

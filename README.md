@@ -42,12 +42,21 @@ La demo anterior era una aplicación aparte. Ahora corre **sobre el Sistema VB c
 7. **Recursos Humanos**, **Club** y **Atención al cliente** con datos de ejemplo.
 
 ## Cómo se compila
-`fuente/` es la fuente del Sistema VB (Almacén RAVE, V26.65) con la capa ya aplicada. La capa está en `fuente/capa-pizzeria/` (`patch_dp.py`, `p11-pizza.js`, `p11-pub-pizza.html`, `dp_brand.py`); para aplicarla a una fuente nueva: `python3 capa-pizzeria/patch_dp.py <fuente>`.
+`fuente/` es la fuente del Sistema VB (Almacén RAVE, V26.65) con la capa ya aplicada. La capa está en `fuente/capa-pizzeria/`, separada por dominio: `p11a-pizza-datos.js` (catálogo, fichas, personal, datos de ejemplo), `p11b-pizza-circuito.js` (estado, comanda, cobro, bollos, sincronización y API de la carta), `p11c-pizza-pantallas.js` (pantallas y acciones), `p11-pub-pizza.html` (carta pública), `dp_brand.py` (marca y estilos) y `patch_dp.py`; para aplicarla a una fuente nueva: `python3 capa-pizzeria/patch_dp.py <fuente>`.
 
 ```
 cd fuente && python3 build.py pizza ../index.html
 ```
-Pruebas en navegador real: `fuente/capa-pizzeria/pruebas/dp1.py` (carta de la mesa → mozo → caja → cocina → cobro con descuento de insumos; roles y asistente) y `dp2.py` (delivery, PedidosYa, rendición, circuito en vivo).
+Pruebas en navegador real (`fuente/capa-pizzeria/pruebas/`): `dp1.py` (carta de la mesa → mozo → caja → cocina → cobro con descuento de insumos; roles y asistente), `dp2.py` (delivery, PedidosYa, rendición, circuito en vivo), `dp3_auditoria.py` (axe-core WCAG 2 A/AA, objetivos táctiles y desbordes a 360 px, en claro y oscuro) y `dp4_teclado_seguridad.py` (teclado, canal entre pestañas, límites de la carta).
+
+## Auditoría V27.6 (11/11/2026)
+Revisión con criterios de arquitectura, rendimiento, UX/accesibilidad y seguridad, **sin cambiar el stack** (HTML único sin conexión; ver esqueleto, sección 1).
+- **Arquitectura:** la capa pasó de un archivo de 120 KB a tres módulos por dominio (datos → circuito → pantallas); el núcleo sigue sin tocarse (sólo ganchos de una línea).
+- **Accesibilidad:** contraste AA en los estados de mesa y comanda (claro y oscuro), títulos en orden, `h1` en la carta, encabezado de tabla con texto para lectores; Enter y Espacio activan pasos del circuito, pestañas e indicadores; foco visible.
+- **Táctil y móvil:** todos los controles de la capa ≥ 44 px; a 360 px Delivery, Fermentación y Fichas ya no desbordan y la tabla de repartos se ve como tarjetas.
+- **Movimiento:** entradas suaves con `transform` y `opacity` (tarjetas, mesas, hoja de la carta, avisos), desactivadas con «reducir movimiento».
+- **Seguridad:** el estado que llega de otra pestaña se valida antes de aceptarlo; la carta pública tiene límites (un envío cada 15 s por mesa, máximo 3 pedidos sin validar por mesa, 12 pedidos web pendientes en 10 min, 30 líneas y 20 unidades por línea, sólo platos y adicionales activos, aclaraciones sin `<` `>`).
+- **Pendiente del núcleo** (no de esta capa): en el Resumen, el orden de títulos del panel «Hoy», la lista desplazable de últimas ventas sin foco y un enlace de 35 px; se corrigen en Almacén RAVE para que lo hereden todas las demos.
 
 Límites honestos: textos legales y alérgenos son plantillas [VERIFICAR]; periféricos y NFC sin probar con equipos reales; PedidosYa y ARCA reales necesitan las cuentas y el certificado del comercio.
 

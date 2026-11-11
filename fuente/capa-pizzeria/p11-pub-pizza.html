@@ -19,9 +19,9 @@ button{font:inherit;cursor:pointer;color:inherit}button:focus-visible,a:focus-vi
 .tabs .b{position:absolute;top:4px;right:6%;background:var(--co);color:#1f0d00;border-radius:99px;font-size:10.5px;min-width:18px;height:18px;padding:0 5px;display:grid;place-items:center;font-weight:700}
 .body{padding:14px 14px 120px}
 .cats{display:flex;gap:6px;overflow-x:auto;padding-bottom:10px;scrollbar-width:none}
-.cats button{flex:none;border:1px solid var(--cl);background:var(--cc);border-radius:99px;padding:8px 15px;font-weight:600;font-size:13px;min-height:40px}
+.cats button{flex:none;border:1px solid var(--cl);background:var(--cc);border-radius:99px;padding:8px 15px;font-weight:600;font-size:13px;min-height:44px}
 .cats button.on{background:var(--ck);color:#fff;border-color:var(--ck)}
-h4{font:800 21px/1.15 var(--fd);margin:8px 0 10px}
+h2.t{font:800 21px/1.15 var(--fd);margin:8px 0 10px}
 .note{font-size:12.5px;color:var(--ck2);margin:0 0 10px}
 .item{display:grid;grid-template-columns:96px 1fr;gap:12px;width:100%;text-align:left;background:var(--cc);border:1px solid var(--cl);border-radius:16px;padding:10px;margin-bottom:10px}
 .item .pi{width:96px;height:96px;border-radius:12px;overflow:hidden;background:#120f0d}.item .pi svg{display:block;width:100%;height:100%}
@@ -54,14 +54,16 @@ input,textarea,select{width:100%;border:1px solid var(--cl);border-radius:12px;p
 .sheet .big{border-radius:16px;overflow:hidden;height:190px;background:#120f0d;margin-bottom:10px}.sheet .big svg{width:100%;height:100%;display:block}
 .x{width:40px;height:40px;border-radius:50%;border:1px solid var(--cl);background:var(--cc);font-size:22px;line-height:1}
 .toast{position:fixed;left:50%;bottom:84px;transform:translateX(-50%);background:#1b130e;color:#fff;padding:11px 16px;border-radius:12px;z-index:60;font-size:13.5px;max-width:90%;text-align:center}
-.foot{text-align:center;font-size:12px;color:var(--ck2);margin-top:20px;line-height:1.6}.foot a{color:var(--co2)}
+.foot{text-align:center;font-size:12px;color:var(--ck2);margin-top:20px;line-height:1.6}.foot a{color:var(--co2);display:inline-block;padding:12px 6px;min-height:44px}.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+@media (prefers-reduced-motion:no-preference){.sheet{animation:fd .2s ease both}.sheet>div{animation:up .28s cubic-bezier(.2,.8,.2,1) both}.toast{animation:fd .2s ease both}.item{animation:fd .25s ease both}}
+@keyframes up{from{transform:translateY(40px);opacity:0}to{transform:none;opacity:1}}@keyframes fd{from{opacity:0}to{opacity:1}}
 .err{color:#a8261b;font-size:13px;margin:6px 0}.ok{color:#1e7a46;font-size:13px;margin:6px 0}
 .empty{text-align:center;color:var(--ck2)}
-.team{display:inline-block;margin-top:10px;background:none;border:1px solid var(--cl);border-radius:12px;padding:8px 14px;font-size:13px}
+.team{display:inline-block;min-height:44px;margin-top:10px;background:none;border:1px solid var(--cl);border-radius:12px;padding:8px 14px;font-size:13px}
 @media (prefers-reduced-motion:no-preference){.item,.btn,.cats button{transition:transform .12s ease}.item:active,.btn:active{transform:scale(.98)}}
 </style></head>
 <body>
-<div class="cx" id="root" aria-live="polite"></div>
+<div class="cx" id="root"></div>
 <script>
 (function(){'use strict';
 var P=null,R=null;try{P=window.parent.DP_API;R=window.parent.RAVE_API;}catch(e){}
@@ -92,9 +94,9 @@ var STEP={pend_mozo:1,pend_caja:2,pend_cocina:3,preparando:4,listo:5,en_camino:5
 function viewCarta(){var cats=C.cats.map(function(k){return '<button class="'+(U.cat===k.id?'on':'')+'" data-a="cat" data-v="'+k.id+'">'+esc(k.s)+'</button>';}).join('');
  var cat=C.cats.filter(function(k){return k.id===U.cat;})[0]||C.cats[0];
  var L=C.prods.filter(function(p){return p.cat===U.cat;}).map(function(p){return '<button class="item'+(p.agot?' agot':'')+'" data-a="item" data-id="'+p.id+'" '+(p.agot?'aria-disabled="true"':'')+'><div class="pi">'+p.art+'</div><div><b>'+esc(p.n)+(p.star?'<span class="tag o">De la casa</span>':'')+(p.alc?'<span class="tag">+18</span>':'')+'</b><p>'+esc(p.d)+'</p><div class="pr"><span>'+money(p.price)+(p.ind?' <small style="font-weight:500;color:var(--ck2)">· indiv. '+money(p.ind.price)+'</small>':'')+'</span><span class="add">'+(p.agot?'Agotado':'Agregar')+'</span></div></div></button>';}).join('');
- return '<nav class="cats" aria-label="Categorías">'+cats+'</nav>'+(U.cat==='dp-piz'?'<p class="note">Masa madre de 48 a 72 h de maduración en frío, horno a 450 °C. Grande (8 porciones) o individual (4).</p>':'')+'<h4>'+esc(cat.n)+'</h4>'+L;}
+ return '<nav class="cats" aria-label="Categorías">'+cats+'</nav>'+(U.cat==='dp-piz'?'<p class="note">Masa madre de 48 a 72 h de maduración en frío, horno a 450 °C. Grande (8 porciones) o individual (4).</p>':'')+'<h2 class="t">'+esc(cat.n)+'</h2>'+L;}
 function viewPedido(){var L=cart();var tot=L.reduce(function(a,l){return a+unit(l)*l.qty;},0);
- if(!L.length)return '<h4>Tu pedido</h4><div class="card empty">Todavía no agregaste nada.<br><br><button class="btn sec" data-a="tab" data-v="carta">Ver la carta</button></div>';
+ if(!L.length)return '<h2 class="t">Tu pedido</h2><div class="card empty">Todavía no agregaste nada.<br><br><button class="btn sec" data-a="tab" data-v="carta">Ver la carta</button></div>';
  var lines='<div class="card">'+L.map(function(l,i){var p=prod(l.pid);var ex=(l.ex||[]).map(function(e){var x=extra(e);return x?x.n:'';}).filter(Boolean);
   return '<div class="ln"><span class="q">'+l.qty+'×</span><div><b>'+esc(p?p.n:'?')+'</b>'+(ex.length?'<small>+ '+esc(ex.join(', '))+'</small>':'')+(l.note?'<small style="color:#a14d00">“'+esc(l.note)+'”</small>':'')+'<small>'+money(unit(l)*l.qty)+'</small></div><div class="qty"><button data-a="qty" data-i="'+i+'" data-d="-1" aria-label="Quitar uno">−</button><span>'+l.qty+'</span><button data-a="qty" data-i="'+i+'" data-d="1" aria-label="Agregar uno">+</button></div></div>';}).join('')
   +'<div class="row" style="margin-top:10px"><b>Total</b><b style="font:800 24px/1 var(--fd)">'+money(tot)+'</b></div></div>';
@@ -103,9 +105,9 @@ function viewPedido(){var L=cart();var tot=L.reduce(function(a,l){return a+unit(
   +'<label class="l" for="wn">Nombre</label><input id="wn" data-f="name" value="'+esc(W.name)+'" autocomplete="name" maxlength="40"><label class="l" for="wt">Celular</label><input id="wt" data-f="tel" value="'+esc(W.tel)+'" inputmode="tel" autocomplete="tel" maxlength="20">'
   +(W.modo==='delivery'?'<label class="l" for="wa">Dirección de entrega</label><input id="wa" data-f="addr" value="'+esc(W.addr)+'" autocomplete="street-address" maxlength="80">':'')
   +'<p class="note" style="margin-top:8px">Pagás al '+(W.modo==='delivery'?'recibir (efectivo o QR)':'retirar')+'. Te avisamos el tiempo de entrega acá mismo.</p></div><div class="err" id="er"></div><button class="btn" data-a="send">Enviar pedido a Di Parma</button>';}
- return '<h4>Tu pedido</h4>'+lines+send;}
+ return '<h2 class="t">Tu pedido</h2>'+lines+send;}
 function viewEstado(){var os=myOrders();var live=os.filter(function(o){return o.status==='preparando';}).sort(function(a,b){return a.etaAt-b.etaAt;})[0];
- var h='<h4>'+(C.table?'Estado de tu mesa':'Estado de tu pedido')+'</h4>';
+ var h='<h2 class="t">'+(C.table?'Estado de tu mesa':'Estado de tu pedido')+'</h2>';
  if(live)h+='<div class="eta" role="timer">Tu pedido #'+live.n+' sale del horno en<b data-cd="'+live.etaAt+'">'+mmss(live.etaAt-Date.now())+'</b><span style="font-size:12.5px;color:#e2d5c3">Tiempo estimado por cocina: '+live.eta+' min</span></div>';
  if(os.length)h+=os.slice().reverse().map(function(o){var cur=STEP[o.status];var logOf=function(s){for(var i=0;i<o.log.length;i++)if(o.log[i].s===s)return o.log[i];return null;};
   if(o.status==='cancelado')return '<div class="card"><b>Pedido #'+o.n+'</b><p class="err">Este pedido fue cancelado. '+(C.table?'Consultá con el mozo.':'Te vamos a llamar.')+'</p></div>';
@@ -117,7 +119,7 @@ function viewEstado(){var os=myOrders();var live=os.filter(function(o){return o.
   +(C.table.bill?'<p class="note" style="text-align:center;margin-top:10px">Ya pediste la cuenta. ¡Gracias por venir!</p>':'');}
  return h;}
 function viewClub(){var c=C.club;var r=U.club;
- return '<h4>Club Di Parma</h4><div class="card"><p style="margin:0 0 6px">Sumá un sello por cada visita. Con <b>'+c.goal+' sellos</b>: '+esc(c.reward)+'. Además: niveles por consumo, beneficio de cumpleaños y cupones.</p><p class="note" style="margin:0">'+esc(C.promo)+'.</p></div>'
+ return '<h2 class="t">Club Di Parma</h2><div class="card"><p style="margin:0 0 6px">Sumá un sello por cada visita. Con <b>'+c.goal+' sellos</b>: '+esc(c.reward)+'. Además: niveles por consumo, beneficio de cumpleaños y cupones.</p><p class="note" style="margin:0">'+esc(C.promo)+'.</p></div>'
   +'<div class="card"><b>Sumate gratis</b><label class="l" for="cn">Nombre y apellido</label><input id="cn" autocomplete="name" maxlength="80"><label class="l" for="cw">WhatsApp</label><input id="cw" inputmode="tel" autocomplete="tel" maxlength="20" placeholder="387 512-3456"><label class="l" for="cb">Cumpleaños</label><input id="cb" type="date">'
   +'<label class="chk"><input type="checkbox" id="cc1"> <span>Acepto la política de privacidad y que Di Parma guarde mis datos para el Club (obligatorio).</span></label><label class="chk"><input type="checkbox" id="cc2"> <span>Quiero recibir promociones por WhatsApp (opcional).</span></label>'
   +(r?'<p class="'+(r.ok?'ok':'err')+'">'+esc(r.msg)+'</p>':'')+'<button class="btn" data-a="join">Sumarme al Club</button></div>'
@@ -132,7 +134,7 @@ function paint(){var root=document.getElementById('root');if(!P||!C){root.innerH
  var sc=window.scrollY;var L=cart();var n=L.reduce(function(a,l){return a+l.qty;},0);var tot=L.reduce(function(a,l){return a+unit(l)*l.qty;},0);var act=myOrders().filter(function(o){return ['pend_mozo','pend_caja','pend_cocina','preparando','listo','en_camino'].indexOf(o.status)>=0;}).length;
  var hero=C.table?'<div class="mesa">'+esc(C.table.label)+'</div><p>Te atiende '+esc(C.table.mozo)+'</p>':'<div class="mesa">Retiro y delivery</div><p>¿Estás en el local? Escaneá el QR o apoyá el celular en el NFC de tu mesa.</p>';
  var body=U.tab==='carta'?viewCarta():U.tab==='pedido'?viewPedido():U.tab==='estado'?viewEstado():viewClub();
- root.innerHTML='<header class="hero"><img src="'+LOGO+'" alt="Di Parma Pizzería · De masa madre"><p>'+esc(C.biz.hours)+'</p>'+hero+'</header>'
+ root.innerHTML='<header class="hero"><h1 class="sr">Di Parma Pizzería de masa madre · Carta'+(C.table?' · '+esc(C.table.label):'')+'</h1><img src="'+LOGO+'" alt="Di Parma Pizzería · De masa madre"><p>'+esc(C.biz.hours)+'</p>'+hero+'</header>'
   +'<nav class="tabs" aria-label="Secciones">'+[['carta','Carta',0],['pedido','Mi pedido',n],['estado','Estado',act],['club','Club',0]].map(function(t){return '<button class="'+(U.tab===t[0]?'on':'')+'" data-a="tab" data-v="'+t[0]+'" aria-current="'+(U.tab===t[0])+'">'+t[1]+(t[2]?'<span class="b">'+t[2]+'</span>':'')+'</button>';}).join('')+'</nav>'
   +'<main class="body">'+body+'<div class="foot">'+esc(C.biz.name)+' · '+esc(C.biz.dir)+'<br>Precios finales en pesos. Beber con moderación. Prohibida la venta de bebidas alcohólicas a menores de 18 años.<br><a href="#" data-a="legal">Privacidad y términos</a>'
   +'<br><span style="display:inline-block;margin-top:10px">Carta digital y gestión: <b>Sistema Vincular Business</b> · VINCULAR BUSINESS · Cel. (387) 4484132 · <a href="https://www.vincularbusiness.com.ar/" target="_blank" rel="noopener noreferrer">vincularbusiness.com.ar</a> · vincularbusiness@gmail.com<br><i>“Tu idea, en buenas manos.”</i></span>'
