@@ -7,7 +7,7 @@ Un solo archivo (`index.html`): carta pública adelante y panel del equipo en `#
 
 - Carta pública (retiro y delivery): `/`
 - Carta de una mesa, la que abre el QR o el tag NFC: `/?mesa=I4` (mesas `I1`–`I10`, exterior `E1`–`E3`, barra `B1`–`B5`)
-- Acceso del equipo: `/#acceso`
+- Acceso del equipo: `/#acceso`, el botón «Acceso del equipo» al pie de la carta o **doble clic (doble toque en el celular) sobre el logo** de la carta
 - Usuarios de prueba: ADMIN 1234 · Supervisor 1111 · Caja 0000 · Mozo Martín 2222 · Moza Sofía 3333 · Barra Joaquín 4444 · Cocina Franco 5555 · Cocina Lucía 6666 · Portal del empleado 7777
 
 **Es una demo.** Carta, precios, costos, insumos, lotes de masa, socios, cupones, personal y ventas son de ejemplo. Los datos se guardan sólo en el navegador de quien la prueba y se sincronizan en vivo entre pestañas del mismo equipo (la carta de una mesa en una pestaña y el panel en otra). Las comandas de ejemplo se renuevan solas cada 14 horas o desde *Configuración → Restablecer datos de demostración*.
@@ -42,12 +42,21 @@ La demo anterior era una aplicación aparte. Ahora corre **sobre el Sistema VB c
 7. **Recursos Humanos**, **Club** y **Atención al cliente** con datos de ejemplo.
 
 ## Cómo se compila
-`fuente/` es la fuente del Sistema VB (Almacén RAVE, V26.65) con la capa ya aplicada. La capa está en `fuente/capa-pizzeria/`, separada por dominio: `p11a-pizza-datos.js` (catálogo, fichas, personal, datos de ejemplo), `p11b-pizza-circuito.js` (estado, comanda, cobro, bollos, sincronización y API de la carta), `p11c-pizza-pantallas.js` (pantallas y acciones), `p11-pub-pizza.html` (carta pública), `dp_brand.py` (marca y estilos) y `patch_dp.py`; para aplicarla a una fuente nueva: `python3 capa-pizzeria/patch_dp.py <fuente>`.
+`fuente/` es la fuente del Sistema VB (Almacén RAVE, V26.65) con la capa ya aplicada. La capa está en `fuente/capa-pizzeria/`, separada por dominio: `p11a-pizza-datos.js` (catálogo, fichas, personal, datos de ejemplo), `p11b-pizza-circuito.js` (estado, comanda, cobro, bollos, sincronización y API de la carta), `p11c-pizza-pantallas.js` (pantallas y acciones), `p11d-config-ux.js` (Configuración dinámica, genérica: sirve para el núcleo), `p11-pub-pizza.html` (carta pública), `dp_brand.py` (marca y estilos) y `patch_dp.py`; para aplicarla a una fuente nueva: `python3 capa-pizzeria/patch_dp.py <fuente>`.
 
 ```
 cd fuente && python3 build.py pizza ../index.html
 ```
-Pruebas en navegador real (`fuente/capa-pizzeria/pruebas/`): `dp1.py` (carta de la mesa → mozo → caja → cocina → cobro con descuento de insumos; roles y asistente), `dp2.py` (delivery, PedidosYa, rendición, circuito en vivo), `dp3_auditoria.py` (axe-core WCAG 2 A/AA, objetivos táctiles y desbordes a 360 px, en claro y oscuro) y `dp4_teclado_seguridad.py` (teclado, canal entre pestañas, límites de la carta).
+Pruebas en navegador real (`fuente/capa-pizzeria/pruebas/`): `dp1.py` (carta de la mesa → mozo → caja → cocina → cobro con descuento de insumos; roles y asistente), `dp2.py` (delivery, PedidosYa, rendición, circuito en vivo), `dp3_auditoria.py` (axe-core WCAG 2 A/AA, objetivos táctiles y desbordes a 360 px, en claro y oscuro) `dp4_teclado_seguridad.py` (teclado, canal entre pestañas, límites de la carta) y `dp5_config_logo.py` (acceso por el logo y Configuración dinámica).
+
+## Configuración dinámica V27.7 (11/11/2026)
+La pantalla de Configuración pasó de una columna de unos 6.500 px a un panel de unos 1.000 px:
+- **Buscador** «¿Qué querés cambiar?» (tecla `/`): filtra por título, etiquetas y ayudas, sin importar tildes, y resalta el campo encontrado.
+- **Índice por secciones** (Negocio · Caja y cobros · Ventas · Asistente e IA · Datos y sistema) con la cantidad de ajustes; en el celular, fichas horizontales.
+- **Tarjetas plegables** con un resumen de una línea; se abre sola la primera con campos de cada sección; «Abrir todo» / «Cerrar todo».
+- **«Sin guardar»** en la tarjeta y en el índice cuando tocás un campo, y aviso del navegador si salís con cambios sin guardar. Guardar sigue siendo el del núcleo y la pantalla vuelve a la misma sección.
+- **Otros ajustes del sistema**: atajos a Usuarios y permisos, Menú público, Nube, Club, Recursos Humanos, Auditoría, etc. (sólo los que el rol puede abrir).
+No se cambió ni duplicó ningún ajuste: la capa reordena las tarjetas que dibuja el núcleo.
 
 ## Auditoría V27.6 (11/11/2026)
 Revisión con criterios de arquitectura, rendimiento, UX/accesibilidad y seguridad, **sin cambiar el stack** (HTML único sin conexión; ver esqueleto, sección 1).

@@ -10,7 +10,7 @@ button{font:inherit;cursor:pointer;color:inherit}button:focus-visible,a:focus-vi
 .cx{max-width:560px;margin:0 auto;background:var(--cb);min-height:100vh;position:relative;box-shadow:0 0 0 1px #2b2523}
 .hero{background:#0b0a0a;color:#fff;padding:26px 18px 30px;text-align:center;position:relative;overflow:hidden}
 .hero::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:22px;background:var(--cb);border-radius:22px 22px 0 0}
-.hero img{width:118px;height:118px;border-radius:50%}
+.hero img{width:118px;height:118px;border-radius:50%;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;touch-action:manipulation}
 .hero p{font-size:12.5px;color:#e2d5c3;margin:6px 0 0}
 .mesa{display:inline-flex;gap:8px;align-items:center;background:var(--co);color:#1f0d00;border-radius:99px;padding:6px 16px;font:700 15px/1.2 var(--fd);letter-spacing:.05em;text-transform:uppercase;margin-top:10px}
 .tabs{position:sticky;top:0;z-index:10;background:var(--cb);display:grid;grid-template-columns:repeat(4,1fr);border-bottom:1px solid var(--cl)}
@@ -168,6 +168,10 @@ document.addEventListener('click',function(ev){var el=ev.target.closest('[data-a
   U.cup={ok:!!ci.ok,msg:ci.ok?(ci.msg||('Cupón '+code+' válido.')):(ci.msg||'Cupón no válido.')};paint();return;}
  if(a==='legal'){ev.preventDefault();var docs=[];try{docs=R.legal()||[];}catch(e){}U.legal=docs.slice(0,3).map(function(d){return '<h3 style="font:700 16px/1.2 var(--fd);margin:14px 0 6px">'+esc(d.title)+'</h3><div style="font-size:13px">'+d.html+'</div>';}).join('')||'<p>No disponible.</p>';paint();return;}
  if(a==='team'){try{R.openPanel();}catch(e){}return;}});
+/* acceso oculto del equipo: doble clic (o doble toque) sobre el logo abre el ingreso al panel */
+var lastTap=0;function teamOpen(){try{R.openPanel();}catch(e){}}
+document.addEventListener('dblclick',function(ev){if(ev.target.closest&&ev.target.closest('.hero img')){ev.preventDefault();teamOpen();}});
+document.addEventListener('touchend',function(ev){if(!(ev.target.closest&&ev.target.closest('.hero img')))return;var t=Date.now();if(t-lastTap<350){ev.preventDefault();lastTap=0;teamOpen();}else lastTap=t;},{passive:false});
 document.addEventListener('input',function(ev){var t=ev.target;if(t.dataset&&t.dataset.f){U.web[t.dataset.f]=t.value;}});
 document.addEventListener('change',function(ev){var t=ev.target;if(t.dataset&&t.dataset.ex&&U.sheet){var i=U.sheet.ex.indexOf(t.dataset.ex);if(t.checked&&i<0)U.sheet.ex.push(t.dataset.ex);if(!t.checked&&i>=0)U.sheet.ex.splice(i,1);var nt=document.getElementById('nt');if(nt)U.sheet.note=nt.value;paint();}});
 var lastRev=0;

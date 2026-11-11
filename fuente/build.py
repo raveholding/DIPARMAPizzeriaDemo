@@ -43,7 +43,7 @@ parts=['p2-core.js','p2b-sort.js','p2c-ux.js','p3-ops.js','p3b-pos.js','p3p-paya
 parts=[p for p in parts if os.path.exists(p)]
 if PROFILE=='pizza':
     i=parts.index('p5c-menusec.js')
-    parts[i:i]=['p11a-pizza-datos.js','p11b-pizza-circuito.js','p11c-pizza-pantallas.js']
+    parts[i:i]=['p11a-pizza-datos.js','p11b-pizza-circuito.js','p11c-pizza-pantallas.js','p11d-config-ux.js']
 # V26.37 · Centro Inteligente (p10-centro.js): módulo aislado.
 # V26.40: aprobado por el dueño para Almacén RAVE (apagado por defecto; lo activa el administrador). Kini no lo lleva salvo CI=1.
 # raveV2 (solo) y Kini no llevan el Centro Inteligente: es de raveV3 y de Almacén RAVE (apagado)

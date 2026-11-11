@@ -68,6 +68,28 @@ html:not([data-theme=dark]) .dp-table .sm.mut{color:#4b5563}
 [data-act][tabindex]:focus-visible,.dp-table:focus-visible,.dp-fs:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 @media (prefers-reduced-motion:no-preference){.dp-ord,.dp-table,.dp-fs,.dp-lote{animation:dpIn .28s ease both}.dp-table,.dp-fs,.dp-pk{transition:transform .15s ease,box-shadow .15s ease}.dp-fs:hover,.dp-pk:hover{transform:translateY(-2px)}
  .dp-ap{animation:dpUp .3s ease both}}
+.cfg-top{position:sticky;top:0;z-index:5;background:var(--bg);padding:.5rem 0 .6rem;margin-bottom:.4rem}
+.cfg-search{display:flex;align-items:center;gap:.5rem;border:1px solid var(--line);background:var(--card);border-radius:14px;padding:0 .8rem;min-height:52px;box-shadow:0 4px 14px rgba(0,0,0,.05)}
+.cfg-search input{border:0!important;background:transparent!important;flex:1;min-height:48px;font-size:1rem;box-shadow:none!important;outline:0}.cfg-search:focus-within{outline:3px solid var(--gold);outline-offset:1px}
+.cfg-search kbd{font-size:.75rem;border:1px solid var(--line);border-radius:6px;padding:.1rem .4rem;color:var(--mut)}
+.cfg-grid{display:grid;grid-template-columns:minmax(220px,280px) minmax(0,1fr);gap:1rem;align-items:start}
+.cfg-nav{position:sticky;top:72px;display:flex;flex-direction:column;gap:.35rem}
+.cfg-sec,.cfg-link{display:flex;align-items:center;gap:.6rem;width:100%;text-align:left;border:1px solid var(--line);background:var(--card);border-radius:14px;padding:.6rem .7rem;cursor:pointer;color:inherit;font:inherit;min-height:56px}
+.cfg-sec small,.cfg-link small{display:block;color:var(--mut);font-size:.76rem;line-height:1.25}.cfg-sec>span:nth-child(2){flex:1}
+.cfg-sec.on{border-color:var(--gold);box-shadow:inset 4px 0 0 var(--gold);background:color-mix(in srgb,var(--gold) 8%,var(--card))}
+.cfg-sic svg{width:20px;height:20px}.cfg-n{font-size:.75rem;font-weight:700;border-radius:99px;padding:.15rem .5rem;background:rgba(127,127,127,.15)}.cfg-n.warn{background:#fde68a;color:#78350f}
+.cfg-more{display:flex;flex-direction:column;gap:.35rem;margin-top:.7rem}.cfg-link{min-height:48px;flex-direction:column;align-items:flex-start;gap:0}
+.cfg-mhead{display:flex;flex-wrap:wrap;align-items:baseline;gap:.2rem 1rem;margin-bottom:.6rem}.cfg-mhead h2{margin:0;flex:0 0 auto}.cfg-mhead p{margin:0;flex:1}
+.cfg-card{padding:0!important;overflow:hidden;margin-bottom:.7rem}.cfg-card.dirty{border-color:#d97706;box-shadow:0 0 0 1px #d97706}
+.cfg-head{display:flex;align-items:center;gap:.7rem;width:100%;border:0;background:transparent;color:inherit;font:inherit;text-align:left;padding:.85rem 1rem;cursor:pointer;min-height:56px}
+.cfg-ht{flex:1;display:flex;flex-direction:column;gap:.15rem}.cfg-ht b{font-size:1.02rem}.cfg-ht small{color:var(--mut);font-size:.8rem;line-height:1.3}
+.cfg-ht small[data-sec]:not([data-sec=""])::before{content:attr(data-sec) " · ";font-weight:700;color:var(--gold2)}
+.cfg-dirty{font-size:.72rem;font-weight:800;border-radius:99px;padding:.2rem .55rem;background:#fde68a;color:#78350f}
+.cfg-chev{font-size:1.5rem;line-height:1;color:var(--mut)}.cfg-card.open .cfg-chev{transform:rotate(90deg)}
+.cfg-body{display:none;padding:0 1rem 1rem;border-top:1px solid var(--line)}.cfg-card.open .cfg-body{display:block}.cfg-body>:first-child{margin-top:.8rem}
+.cfg-hit{background:color-mix(in srgb,var(--gold) 22%,transparent);border-radius:6px;box-shadow:0 0 0 3px color-mix(in srgb,var(--gold) 22%,transparent)}
+@media (prefers-reduced-motion:no-preference){.cfg-chev{transition:transform .18s ease}.cfg-card.open .cfg-body{animation:dpIn .22s ease both}}
+@media (max-width:900px){.cfg-grid{grid-template-columns:minmax(0,1fr)}.cfg-nav{position:static;flex-direction:row;overflow-x:auto;padding-bottom:.3rem}.cfg-sec{flex:0 0 auto;width:auto}.cfg-sec small{display:none}.cfg-more{display:none}}
 @keyframes dpIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}@keyframes dpUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion:reduce){.dp-table:hover{transform:none}.dp-apb i{transition:none}}
 '''

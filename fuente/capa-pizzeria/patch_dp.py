@@ -13,7 +13,7 @@ def rep(f,old,new,marker):
     assert s.count(old)==1,(f,old[:80],s.count(old))
     wr(f,s.replace(old,new))
 here=os.path.dirname(os.path.abspath(__file__))
-MODS=['p11a-pizza-datos.js','p11b-pizza-circuito.js','p11c-pizza-pantallas.js']  # módulo por dominio: datos → circuito → pantallas
+MODS=['p11a-pizza-datos.js','p11b-pizza-circuito.js','p11c-pizza-pantallas.js','p11d-config-ux.js']  # módulo por dominio: datos → circuito → pantallas
 for a,b in [(m,m) for m in MODS]+[('diparma-logo.webp','assets/diparma-logo.webp')]:
     shutil.copy(os.path.join(here,a),os.path.join(D,b))
 # 1 · datos iniciales: después de la base de un solo dueño, la base de la pizzería
@@ -41,7 +41,7 @@ if "'pizza'" not in b:
       "if PROFILE=='pizza': pub=os.environ.get('PUBLIC_URL','https://raveholding.github.io/DIPARMAPizzeriaDemo/')",1)
     b=b.replace("'v3':'rave-v3-demo-v2'}","'v3':'rave-v3-demo-v2','pizza':'rave-diparma-demo-v1'}",1)
     b=b.replace("parts=[p for p in parts if os.path.exists(p)]",
-      "parts=[p for p in parts if os.path.exists(p)]\nif PROFILE=='pizza':\n    i=parts.index('p5c-menusec.js')\n    parts[i:i]=['p11a-pizza-datos.js','p11b-pizza-circuito.js','p11c-pizza-pantallas.js']",1)
+      "parts=[p for p in parts if os.path.exists(p)]\nif PROFILE=='pizza':\n    i=parts.index('p5c-menusec.js')\n    parts[i:i]=['p11a-pizza-datos.js','p11b-pizza-circuito.js','p11c-pizza-pantallas.js','p11d-config-ux.js']",1)
     b=b.replace("if (V in ('demo','cliente') and PROFILE not in('kini','solo'))","if (V in ('demo','cliente') and PROFILE not in('kini','solo','pizza'))",1)
     b=b.replace("if PROFILE in('solo','v3'): html=solo_brand(html,PROFILE=='v3')",
       "if PROFILE in('solo','v3'): html=solo_brand(html,PROFILE=='v3')\n"
@@ -55,7 +55,7 @@ if "'pizza'" not in b:
 if os.path.exists(os.path.join(D,'p11-pizza.js')):os.remove(os.path.join(D,'p11-pizza.js'))  # versión monolítica anterior
 b=rd('build.py')
 if "'p11-pizza.js'" in b:
-    b=b.replace("if PROFILE=='pizza': parts.insert(parts.index('p5c-menusec.js'),'p11-pizza.js')","if PROFILE=='pizza':\n    i=parts.index('p5c-menusec.js')\n    parts[i:i]=['p11a-pizza-datos.js','p11b-pizza-circuito.js','p11c-pizza-pantallas.js']",1);wr('build.py',b)
+    b=b.replace("if PROFILE=='pizza': parts.insert(parts.index('p5c-menusec.js'),'p11-pizza.js')","if PROFILE=='pizza':\n    i=parts.index('p5c-menusec.js')\n    parts[i:i]=['p11a-pizza-datos.js','p11b-pizza-circuito.js','p11c-pizza-pantallas.js','p11d-config-ux.js']",1);wr('build.py',b)
 dst=os.path.join(D,'capa-pizzeria')
 if os.path.abspath(dst)!=os.path.abspath(here):
     os.makedirs(dst,exist_ok=True)
