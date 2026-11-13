@@ -90,6 +90,10 @@ html:not([data-theme=dark]) .dp-table .sm.mut{color:#4b5563}
 .cfg-hit{background:color-mix(in srgb,var(--gold) 22%,transparent);border-radius:6px;box-shadow:0 0 0 3px color-mix(in srgb,var(--gold) 22%,transparent)}
 @media (prefers-reduced-motion:no-preference){.cfg-chev{transition:transform .18s ease}.cfg-card.open .cfg-body{animation:dpIn .22s ease both}}
 @media (max-width:900px){.cfg-grid{grid-template-columns:minmax(0,1fr)}.cfg-nav{position:static;flex-direction:row;overflow-x:auto;padding-bottom:.3rem}.cfg-sec{flex:0 0 auto;width:auto}.cfg-sec small{display:none}.cfg-more{display:none}}
+.dp-gbtn{width:100%;justify-content:center;gap:.6rem;margin:.6rem 0 .2rem;background:#fff!important;color:#1f1f1f!important;border:1px solid #dadce0!important;font-weight:600}html[data-theme=dark] .dp-gbtn{background:#131314!important;color:#e3e3e3!important;border-color:#8e918f!important}
+.dp-or{display:flex;align-items:center;gap:.6rem;color:var(--mut);font-size:.8rem;margin:.4rem 0}.dp-or::before,.dp-or::after{content:"";flex:1;height:1px;background:var(--line)}
+.dp-gacc{display:flex;flex-direction:column;gap:.4rem}.dp-gac{display:flex;align-items:center;gap:.7rem;border:1px solid var(--line);background:var(--card);border-radius:12px;padding:.6rem .8rem;text-align:left;cursor:pointer;color:inherit;font:inherit;min-height:56px}.dp-gac:hover{border-color:var(--gold)}.dp-gac small{display:block;color:var(--mut);font-size:.8rem}
+.dp-gav{width:36px;height:36px;border-radius:50%;background:var(--gold);color:#000;display:grid;place-items:center;font-weight:800;flex:none}
 #side-scrim{position:fixed;inset:0;z-index:29;background:rgba(0,0,0,.5);display:flex;align-items:flex-start;justify-content:flex-end;padding:.8rem}#side-scrim[hidden]{display:none}
 #side-x{background:#fff;color:#111;border:0;min-height:44px;box-shadow:0 6px 20px rgba(0,0,0,.35)}body.side-lock{overflow:hidden}
 @media (prefers-reduced-motion:no-preference){#side-scrim:not([hidden]){animation:dpFd .2s ease both}}@keyframes dpFd{from{opacity:0}to{opacity:1}}
@@ -101,7 +105,6 @@ def brand(h):
     h=re.sub(r'const LOGO_MENU="[^"]*"','const LOGO_MENU="%s"'%menu,h,count=1)
     h=re.sub(r'const LOGO_TICKET="[^"]*"','const LOGO_TICKET="%s"'%ticket,h,count=1)
     h=h.replace('--ink:#242220;','--ink:#1b1715;',1).replace('--gold:#c9963e;','--gold:#ff7f00;',1).replace('--gold2:#a87a28;','--gold2:#b84f00;',1)
-    h=h.replace('name="theme-color" content="#242220"','name="theme-color" content="#0b0a0a"',1)
     h=re.sub(r'<link rel="icon" href="[^"]*"','<link rel="icon" href="%s"'%icon,h,count=1)
     h=h.replace('style="width:48px;height:27px;object-fit:cover;border-radius:6px"','style="width:40px;height:40px;object-fit:cover;border-radius:50%"')
     h=h.replace('<span>Sistema RAVE</span></a>','<span>Di Parma</span></a>',1)
@@ -114,9 +117,12 @@ def brand(h):
         h=h.replace(o,n)
     h=h.replace('<span>Pedidos delivery (PedidosYa)</span>','<span>Pedidos delivery</span>',1)
     # usuarios de prueba de la pizzería
-    old='Usuarios de prueba: ADMIN · 1234 / Supervisor · 1111 / Mostrador · 0000${S.users.some(u=>u.role===\'empleado\'&&u.pin===\'2222\')?\' / Empleado (portal) · 2222\':\'\'}'
+    old='Usuarios de prueba: ADMIN · 1234 / Supervisor · 1111 / Mostrador · 0000 / Repartidor · 3333${S.users.some(u=>u.role===\'empleado\'&&u.pin===\'2222\')?\' / Empleado (portal) · 2222\':\'\'}'
     assert old in h,'texto de usuarios de prueba no encontrado'
-    h=h.replace(old,'Usuarios de prueba: ADMIN 1234 · Supervisor 1111 · Caja 0000 · Mozo Martín 2222 · Moza Sofía 3333 · Barra Joaquín 4444 · Cocina Franco 5555 · Cocina Lucía 6666 · Portal del empleado 7777',1)
+    h=h.replace(old,'Usuarios de prueba: ADMIN 1234 · Supervisor 1111 · Caja 0000 · Mozo Martín 2222 · Moza Sofía 3333 · Barra Joaquín 4444 · Cocina Franco 5555 · Cocina Lucía 6666 · Cadete Lucas 8888 · Cadete Ramiro 9999 · Portal del empleado 7777',1)
+    lu='<label for="lu">Usuario</label><select id="lu">'
+    assert lu in h
+    h=h.replace(lu,"${typeof dpGoogleBtn==='function'?dpGoogleBtn():''}"+lu,1)
     # tema propio de este sitio (los repositorios comparten el origen raveholding.github.io)
     h=h.replace("localStorage.getItem('rave.theme')","localStorage.getItem('rave.theme.diparma')",1).replace("localStorage.setItem('rave.theme',n)","localStorage.setItem('rave.theme.diparma',n)",1)
     assert "rave.theme.diparma" in h
@@ -127,6 +133,10 @@ def brand(h):
     while h[e]!='"':
         e+=2 if h[e]=='\\' else 1
     e+=1
+    core=h[k:e]  # menú y app del Club del núcleo, ya con la marca: se usa para #mitarjeta
+    for o,n in [('#e8c98d','#ff9a3d'),('#c9963e','#ff7f00'),('#dba854','#ff9a3d'),('#3a3020','#3a1f0a'),('#e6c27a','#ffb066'),('#b8862f','#ff7f00'),('#e7d5b0','#ffd9b0'),
+                ('width:52px;height:30px;object-fit:cover;border-radius:6px','width:40px;height:40px;object-fit:cover;border-radius:50%')]:
+        core=core.replace(o,n)
     doc=open(os.path.join(HERE,'p11-pub-pizza.html'),encoding='utf8').read().replace('__LOGO__',menu)
-    h=h[:k]+json.dumps(doc,ensure_ascii=False).replace('</','<\\/')+h[e:]
+    h=h[:k]+json.dumps(doc,ensure_ascii=False).replace('</','<\\/')+';\nconst PUB_DOC_CORE='+core+h[e:]
     return h

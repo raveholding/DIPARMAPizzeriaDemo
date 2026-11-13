@@ -13,7 +13,7 @@ def rep(f,old,new,marker):
     assert s.count(old)==1,(f,old[:80],s.count(old))
     wr(f,s.replace(old,new))
 here=os.path.dirname(os.path.abspath(__file__))
-MODS=['p11a-pizza-datos.js','p11b-pizza-circuito.js','p11c-pizza-pantallas.js','p11d-config-ux.js']  # módulo por dominio: datos → circuito → pantallas
+MODS=['p11a-pizza-datos.js','p11b-pizza-circuito.js','p11c-pizza-pantallas.js']  # V27.9: p11d (Configuración) se retira: el núcleo V26.66 ya trae la suya  # módulo por dominio: datos → circuito → pantallas
 for a,b in [(m,m) for m in MODS]+[('diparma-logo.webp','assets/diparma-logo.webp')]:
     shutil.copy(os.path.join(here,a),os.path.join(D,b))
 # 1 · datos iniciales: después de la base de un solo dueño, la base de la pizzería
@@ -41,7 +41,7 @@ if "'pizza'" not in b:
       "if PROFILE=='pizza': pub=os.environ.get('PUBLIC_URL','https://raveholding.github.io/DIPARMAPizzeriaDemo/')",1)
     b=b.replace("'v3':'rave-v3-demo-v2'}","'v3':'rave-v3-demo-v2','pizza':'rave-diparma-demo-v1'}",1)
     b=b.replace("parts=[p for p in parts if os.path.exists(p)]",
-      "parts=[p for p in parts if os.path.exists(p)]\nif PROFILE=='pizza':\n    i=parts.index('p5c-menusec.js')\n    parts[i:i]=['p11a-pizza-datos.js','p11b-pizza-circuito.js','p11c-pizza-pantallas.js','p11d-config-ux.js']",1)
+      "parts=[p for p in parts if os.path.exists(p)]\nif PROFILE=='pizza':\n    i=parts.index('p5c-menusec.js')\n    parts[i:i]=['p11a-pizza-datos.js','p11b-pizza-circuito.js','p11c-pizza-pantallas.js']",1)
     b=b.replace("if (V in ('demo','cliente') and PROFILE not in('kini','solo'))","if (V in ('demo','cliente') and PROFILE not in('kini','solo','pizza'))",1)
     b=b.replace("if PROFILE in('solo','v3'): html=solo_brand(html,PROFILE=='v3')",
       "if PROFILE in('solo','v3'): html=solo_brand(html,PROFILE=='v3')\n"
@@ -55,10 +55,20 @@ if "'pizza'" not in b:
 if os.path.exists(os.path.join(D,'p11-pizza.js')):os.remove(os.path.join(D,'p11-pizza.js'))  # versión monolítica anterior
 b=rd('build.py')
 if "'p11-pizza.js'" in b:
-    b=b.replace("if PROFILE=='pizza': parts.insert(parts.index('p5c-menusec.js'),'p11-pizza.js')","if PROFILE=='pizza':\n    i=parts.index('p5c-menusec.js')\n    parts[i:i]=['p11a-pizza-datos.js','p11b-pizza-circuito.js','p11c-pizza-pantallas.js','p11d-config-ux.js']",1);wr('build.py',b)
+    b=b.replace("if PROFILE=='pizza': parts.insert(parts.index('p5c-menusec.js'),'p11-pizza.js')","if PROFILE=='pizza':\n    i=parts.index('p5c-menusec.js')\n    parts[i:i]=['p11a-pizza-datos.js','p11b-pizza-circuito.js','p11c-pizza-pantallas.js']",1);wr('build.py',b)
 dst=os.path.join(D,'capa-pizzeria')
 if os.path.abspath(dst)!=os.path.abspath(here):
     os.makedirs(dst,exist_ok=True)
     for f in os.listdir(here):
         if os.path.isfile(os.path.join(here,f)):shutil.copy(os.path.join(here,f),os.path.join(dst,f))
+# V27.9 · app instalable con la marca Di Parma (nombre, ícono con el logo sobre negro, color)
+b=rd('build.py')
+if "'pizza':('Di Parma'" not in b:
+    b=b.replace("'solo':('Sistema VB','VB','Club VB')}","'solo':('Sistema VB','VB','Club VB'),'pizza':('Di Parma Pizzería','Di Parma','Club Di Parma')}",1)
+    b=b.replace("    def icon(n,mask=False):\n        bg='#242220'","    def icon(n,mask=False):\n        if PROFILE=='pizza':\n            im=Image.new('RGB',(n,n),'#0b0a0a');lg=Image.open(os.path.join('capa-pizzeria','diparma-logo.webp')).convert('RGBA');w=int(n*(.74 if mask else .96));lg=lg.resize((w,w),Image.LANCZOS);im.paste(lg,((n-w)//2,(n-w)//2),lg);return im\n        bg='#242220'",1)
+    b=b.replace("open(out,'w',encoding='utf8').write(html)\npwa_files(","if PROFILE=='pizza': html=html.replace('content=\"#242220\"','content=\"#0b0a0a\"')\nopen(out,'w',encoding='utf8').write(html)\npwa_files(",1)
+    b=b.replace("    base={'lang':'es-AR'","    _bg='#0b0a0a' if PROFILE=='pizza' else '#242220'\n    base={'lang':'es-AR'",1).replace("'background_color':'#242220','theme_color':'#242220'","'background_color':_bg,'theme_color':_bg",1)
+    assert "'pizza':('Di Parma" in b and "PROFILE=='pizza':\n            im=" in b and "_bg='#0b0a0a'" in b and 'content=\"#0b0a0a\"' in b
+    wr('build.py',b)
+if os.path.exists(os.path.join(D,'p11d-config-ux.js')):os.remove(os.path.join(D,'p11d-config-ux.js'))
 print('capa Di Parma aplicada en',D)

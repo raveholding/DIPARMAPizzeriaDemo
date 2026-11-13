@@ -127,14 +127,22 @@ function pizzaBase(d){if(typeof window==='undefined'||!window.__dpReady)return d
  d.tasks=[{id:'t1',title:'Refrescar la madre (Mamma) y anotar la temperatura',puestoId:'pu_coc',freq:'daily',active:true},{id:'t2',title:'Controlar la temperatura de la cámara de bollos',puestoId:'pu_coc',freq:'daily',active:true},
   {id:'t3',title:'Abrir caja y controlar el cambio',puestoId:'pu_caj',freq:'daily',active:true},{id:'t4',title:'Armar mesas, QR y tags NFC de cada mesa',puestoId:'pu_sal',freq:'daily',active:true},
   {id:'t5',title:'Pedido de quesos a Lácteos La Quebrada',puestoId:'pu_sup',freq:'weekly',dow:2,active:true},{id:'t6',title:'Limpieza profunda del horno',puestoId:'pu_coc',freq:'weekly',dow:1,active:true}];
- d.users=[{id:'u1',name:'ADMIN',role:'admin',pin:'1234'},{id:'u2',name:'Supervisor',role:'supervisor',pin:'1111'},{id:'u3',name:'Caja · Camila',role:'mostrador',pin:'0000',empId:'e6'},
-  {id:'u4',name:'Mozo · Martín',role:'mozo',pin:'2222',empId:'e3'},{id:'u5',name:'Moza · Sofía',role:'mozo',pin:'3333',empId:'e4'},{id:'u6',name:'Barra · Joaquín',role:'mozo',pin:'4444',empId:'e5'},
-  {id:'u7',name:'Cocina · Franco',role:'cocina',pin:'5555',empId:'e7'},{id:'u8',name:'Cocina · Lucía',role:'cocina',pin:'6666',empId:'e8'},{id:'u-emp',name:'Portal del empleado',role:'empleado',pin:'7777',empId:'e12'}];
+ d.users=[{id:'u1',name:'ADMIN',role:'admin',pin:'1234',email:'valentina.rios@diparma.example'},{id:'u2',name:'Supervisor',role:'supervisor',pin:'1111',email:'gabriel.toro@diparma.example'},{id:'u3',name:'Caja · Camila',role:'mostrador',pin:'0000',empId:'e6',email:'camila.ortiz@diparma.example'},
+  {id:'u4',name:'Mozo · Martín',role:'mozo',pin:'2222',empId:'e3',email:'martin.guzman@diparma.example'},{id:'u5',name:'Moza · Sofía',role:'mozo',pin:'3333',empId:'e4'},{id:'u6',name:'Barra · Joaquín',role:'mozo',pin:'4444',empId:'e5'},
+  {id:'u7',name:'Cocina · Franco',role:'cocina',pin:'5555',empId:'e7',email:'franco.medina@diparma.example'},{id:'u8',name:'Cocina · Lucía',role:'cocina',pin:'6666',empId:'e8'},{id:'u-emp',name:'Portal del empleado',role:'empleado',pin:'7777',empId:'e12'},
+  {id:'u9',name:'Cadete · Lucas',role:'repartidor',pin:'8888',empId:'e9',email:'lucas.mamani@diparma.example'},{id:'u10',name:'Cadete · Ramiro',role:'repartidor',pin:'9999',empId:'e10'}];
  d.roles=d.roles||{};const add=(r,L)=>{d.roles[r]=Array.from(new Set((d.roles[r]||[]).concat(L)));};
  add('admin',['dp_salon','dp_mozo','dp_caja','dp_cocina','dp_ferm','dp_fichas']);add('supervisor',['dp_salon','dp_mozo','dp_caja','dp_cocina','dp_ferm','dp_fichas']);
  add('mostrador',['dp_salon','dp_caja']);
  d.roles.mozo=['dp_salon','dp_mozo','tasks','customers'];d.roles.cocina=['dp_salon','dp_cocina','dp_ferm','tasks'];
  d.branches=[];d.registers=[];d.sessions=[];
+ /* V27.9 · reparto del núcleo (V26.69: bandeja, hoja de ruta, copiloto del cadete, rendición ciega) con los datos de la pizzería */
+ d.cfg.rep={on:true,menu:true,origen:{dir:'Balcarce 850, Salta (ejemplo)',lat:-24.7795,lng:-65.4112},
+  zonas:[{id:'zc',nombre:'Centro y Balcarce',tarifa:120000,minimo:0,eta:'25-35 min',radio:2,activo:true},{id:'zn',nombre:'Barrios cercanos',tarifa:200000,minimo:1500000,eta:'35-45 min',radio:4,activo:true},{id:'zl',nombre:'Tres Cerritos y Grand Bourg',tarifa:320000,minimo:2500000,eta:'45-60 min',radio:7,activo:true}],
+  reps:[{id:'rp1',nombre:'Lucas Mamaní',tel:'3874000001',veh:'Moto',cap:4,fijo:90000,pct:0,login:'u9',activo:true},{id:'rp2',nombre:'Ramiro Sosa',tel:'3874000002',veh:'Moto',cap:4,fijo:90000,pct:0,login:'u10',activo:true}],
+  cap:4,ausenteMin:5,pin:true,foto:false,cobro:{alias:'diparma.pizza.mp (demo)',titular:'Di Parma Pizzería (demo)',qrImg:''},con:{mapas:'free',cobro:'free',wa:'free',nav:'gmaps',test:{}},ausentePaga:false,rubro:'gastronomia',
+  pick:'cerveza, gaseosa, agua, vino, limonada, postre, tiramisú, fainá, ají, salsa, servilleta, caja de pizza'};
+ d.envios=[];d.rutas=[];d.rendRep=[];
  /* proveedores reales del módulo de compras (con CUIT válido de ejemplo) */
  d.suppliers=DP_PROV.map(([id,n,rubro,tel,mail,saldo],i)=>({id,razon:n,cuit:dpCuit(i+1),iva:i%3?'Responsable Inscripto':'Monotributista',email:mail,tel,dir:'Salta (ejemplo) · '+rubro,saldo,activo:true,ts:now()-90*DPD}));
  d.supLedger=d.suppliers.filter(s=>s.saldo>0).map((s,i)=>({id:'sl'+i,seq:i+1,provId:s.id,tipo:'Factura',monto:s.saldo,saldo:s.saldo,ts:now()-(3+i*4)*DPD,ref:'FC A 0004-000'+(1210+i)+' (ejemplo)'}));

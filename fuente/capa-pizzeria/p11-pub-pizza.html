@@ -59,6 +59,7 @@ input,textarea,select{width:100%;border:1px solid var(--cl);border-radius:12px;p
 @keyframes up{from{transform:translateY(40px);opacity:0}to{transform:none;opacity:1}}@keyframes fd{from{opacity:0}to{opacity:1}}
 .err{color:#a8261b;font-size:13px;margin:6px 0}.ok{color:#1e7a46;font-size:13px;margin:6px 0}
 .empty{text-align:center;color:var(--ck2)}
+.inst{display:inline-flex;align-items:center;gap:6px;margin-top:12px;background:#fff;color:#1b130e;border:0;border-radius:99px;padding:10px 18px;font-weight:700;min-height:44px;box-shadow:0 4px 14px rgba(255,127,0,.35)}
 .team{display:inline-block;min-height:44px;margin-top:10px;background:none;border:1px solid var(--cl);border-radius:12px;padding:8px 14px;font-size:13px}
 @media (prefers-reduced-motion:no-preference){.item,.btn,.cats button{transition:transform .12s ease}.item:active,.btn:active{transform:scale(.98)}}
 </style></head>
@@ -69,7 +70,7 @@ input,textarea,select{width:100%;border:1px solid var(--cl);border-radius:12px;p
 var P=null,R=null;try{P=window.parent.DP_API;R=window.parent.RAVE_API;}catch(e){}
 var LOGO="__LOGO__";
 var MESA=(window.__DPMESA||'').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,4);
-var U={tab:'carta',cat:'dp-piz',sheet:null,web:{modo:'retiro',name:'',tel:'',addr:''},toast:'',mine:[],club:null};
+var U={tab:(window.__DPTAB==='club'?'club':'carta'),cat:'dp-piz',sheet:null,web:{modo:'retiro',name:'',tel:'',addr:''},toast:'',mine:[],club:null};
 try{U.mine=JSON.parse(sessionStorage.getItem('dp.mine')||'[]');}catch(e){}
 var LOCAL_CART=[];
 var C=null;
@@ -119,7 +120,7 @@ function viewEstado(){var os=myOrders();var live=os.filter(function(o){return o.
   +(C.table.bill?'<p class="note" style="text-align:center;margin-top:10px">Ya pediste la cuenta. ¡Gracias por venir!</p>':'');}
  return h;}
 function viewClub(){var c=C.club;var r=U.club;
- return '<h2 class="t">Club Di Parma</h2><div class="card"><p style="margin:0 0 6px">Sumá un sello por cada visita. Con <b>'+c.goal+' sellos</b>: '+esc(c.reward)+'. Además: niveles por consumo, beneficio de cumpleaños y cupones.</p><p class="note" style="margin:0">'+esc(C.promo)+'.</p></div>'
+ return '<h2 class="t">Club Di Parma</h2><div class="card" style="background:#0b0a0a;color:#fff;border-color:#0b0a0a"><b style="font:800 18px/1.2 var(--fd);color:#ff9a3d">¿Ya sos socio?</b><p style="margin:6px 0 10px;font-size:13px;color:#e2d5c3">Abrí tu tarjeta: sellos, nivel, crédito, cupones, membresía y el seguimiento de tus pedidos.</p><div class="g2"><button class="btn" data-a="card">⭐ Mi tarjeta del Club</button>'+(canInstall()?'<button class="btn sec" data-a="inst">📲 Instalar la app</button>':'<button class="btn sec" data-a="chat">💬 Escribinos</button>')+'</div></div><div class="card"><p style="margin:0 0 6px">Sumá un sello por cada visita. Con <b>'+c.goal+' sellos</b>: '+esc(c.reward)+'. Además: niveles por consumo, beneficio de cumpleaños y cupones.</p><p class="note" style="margin:0">'+esc(C.promo)+'.</p></div>'
   +'<div class="card"><b>Sumate gratis</b><label class="l" for="cn">Nombre y apellido</label><input id="cn" autocomplete="name" maxlength="80"><label class="l" for="cw">WhatsApp</label><input id="cw" inputmode="tel" autocomplete="tel" maxlength="20" placeholder="387 512-3456"><label class="l" for="cb">Cumpleaños</label><input id="cb" type="date">'
   +'<label class="chk"><input type="checkbox" id="cc1"> <span>Acepto la política de privacidad y que Di Parma guarde mis datos para el Club (obligatorio).</span></label><label class="chk"><input type="checkbox" id="cc2"> <span>Quiero recibir promociones por WhatsApp (opcional).</span></label>'
   +(r?'<p class="'+(r.ok?'ok':'err')+'">'+esc(r.msg)+'</p>':'')+'<button class="btn" data-a="join">Sumarme al Club</button></div>'
@@ -132,9 +133,10 @@ function sheetItem(){var p=prod(U.sheet.id);if(!p)return '';var S2=U.sheet;var p
   +'<div class="row" style="margin-top:12px"><div class="qty"><button data-a="sq" data-d="-1" aria-label="Uno menos">−</button><span>'+S2.qty+'</span><button data-a="sq" data-d="1" aria-label="Uno más">+</button></div><button class="btn" style="width:auto;flex:1" data-a="addok">Agregar · '+money((base+ex)*S2.qty)+'</button></div></div></div>';}
 function paint(){var root=document.getElementById('root');if(!P||!C){root.innerHTML='<div class="hero"><img src="'+LOGO+'" alt="Di Parma Pizzería"></div><div class="body"><div class="card">La carta no está disponible en este momento.</div></div>';return;}
  var sc=window.scrollY;var L=cart();var n=L.reduce(function(a,l){return a+l.qty;},0);var tot=L.reduce(function(a,l){return a+unit(l)*l.qty;},0);var act=myOrders().filter(function(o){return ['pend_mozo','pend_caja','pend_cocina','preparando','listo','en_camino'].indexOf(o.status)>=0;}).length;
+ var inst=canInstall()?'<button class="inst" data-a="inst">📲 Instalar la app de Di Parma</button>':'';
  var hero=C.table?'<div class="mesa">'+esc(C.table.label)+'</div><p>Te atiende '+esc(C.table.mozo)+'</p>':'<div class="mesa">Retiro y delivery</div><p>¿Estás en el local? Escaneá el QR o apoyá el celular en el NFC de tu mesa.</p>';
  var body=U.tab==='carta'?viewCarta():U.tab==='pedido'?viewPedido():U.tab==='estado'?viewEstado():viewClub();
- root.innerHTML='<header class="hero"><h1 class="sr">Di Parma Pizzería de masa madre · Carta'+(C.table?' · '+esc(C.table.label):'')+'</h1><img src="'+LOGO+'" alt="Di Parma Pizzería · De masa madre"><p>'+esc(C.biz.hours)+'</p>'+hero+'</header>'
+ root.innerHTML='<header class="hero"><h1 class="sr">Di Parma Pizzería de masa madre · Carta'+(C.table?' · '+esc(C.table.label):'')+'</h1><img src="'+LOGO+'" alt="Di Parma Pizzería · De masa madre"><p>'+esc(C.biz.hours)+'</p>'+hero+inst+'</header>'
   +'<nav class="tabs" aria-label="Secciones">'+[['carta','Carta',0],['pedido','Mi pedido',n],['estado','Estado',act],['club','Club',0]].map(function(t){return '<button class="'+(U.tab===t[0]?'on':'')+'" data-a="tab" data-v="'+t[0]+'" aria-current="'+(U.tab===t[0])+'">'+t[1]+(t[2]?'<span class="b">'+t[2]+'</span>':'')+'</button>';}).join('')+'</nav>'
   +'<main class="body">'+body+'<div class="foot">'+esc(C.biz.name)+' · '+esc(C.biz.dir)+'<br>Precios finales en pesos. Beber con moderación. Prohibida la venta de bebidas alcohólicas a menores de 18 años.<br><a href="#" data-a="legal">Privacidad y términos</a>'
   +'<br><span style="display:inline-block;margin-top:10px">Carta digital y gestión: <b>Sistema Vincular Business</b> · VINCULAR BUSINESS · Cel. (387) 4484132 · <a href="https://www.vincularbusiness.com.ar/" target="_blank" rel="noopener noreferrer">vincularbusiness.com.ar</a> · vincularbusiness@gmail.com<br><i>“Tu idea, en buenas manos.”</i></span>'
@@ -167,7 +169,10 @@ document.addEventListener('click',function(ev){var el=ev.target.closest('[data-a
  if(a==='cup'){var code=(document.getElementById('cp').value||'').trim().toUpperCase();if(!code)return;var tot2=cart().reduce(function(x,l){return x+unit(l)*l.qty;},0);var ci;try{ci=R.couponInfo(code,Math.round(tot2*100));}catch(e){ci={ok:false,msg:'No se pudo consultar.'};}
   U.cup={ok:!!ci.ok,msg:ci.ok?(ci.msg||('Cupón '+code+' válido.')):(ci.msg||'Cupón no válido.')};paint();return;}
  if(a==='legal'){ev.preventDefault();var docs=[];try{docs=R.legal()||[];}catch(e){}U.legal=docs.slice(0,3).map(function(d){return '<h3 style="font:700 16px/1.2 var(--fd);margin:14px 0 6px">'+esc(d.title)+'</h3><div style="font-size:13px">'+d.html+'</div>';}).join('')||'<p>No disponible.</p>';paint();return;}
- if(a==='team'){try{R.openPanel();}catch(e){}return;}});
+ if(a==='team'){try{R.openPanel();}catch(e){}return;}
+ if(a==='inst'){var ra=RA();if(ra){Promise.resolve(ra.install()).then(function(){paint();});}return;}
+ if(a==='card'){openCard();return;}
+ if(a==='chat'){try{window.RAVE_CHAT_OPEN();}catch(e){}return;}});
 /* acceso oculto del equipo: doble clic (o doble toque) sobre el logo abre el ingreso al panel */
 var lastTap=0;function teamOpen(){try{R.openPanel();}catch(e){}}
 document.addEventListener('dblclick',function(ev){if(ev.target.closest&&ev.target.closest('.hero img')){ev.preventDefault();teamOpen();}});
@@ -177,7 +182,57 @@ document.addEventListener('change',function(ev){var t=ev.target;if(t.dataset&&t.
 var lastRev=0;
 setInterval(function(){[].forEach.call(document.querySelectorAll('[data-cd]'),function(el){el.textContent=mmss(+el.dataset.cd-Date.now());});
  if(!P)return;var r=0;try{r=P.rev();}catch(e){}if(r!==lastRev){lastRev=r;var a=document.activeElement;if(a&&/INPUT|TEXTAREA|SELECT/.test(a.tagName))return;var keep=C&&!C.table?LOCAL_CART:null;load();if(keep)LOCAL_CART=keep;if(!U.sheet)paint();}},1000);
-window.RAVE_OPEN_MYCARD=function(){U.tab='club';paint();};
+window.RAVE_OPEN_MYCARD=function(){openCard();};
+function RA(){try{return window.parent.RAVE_APP||null;}catch(e){return null;}}
+function canInstall(){var a=RA();try{return !!(a&&a.can()&&!a.installed());}catch(e){return false;}}
+function openCard(tab){try{window.parent.DP_OPEN_CARD(tab||'');}catch(e){}}
+/* --- chat «Escribinos» de Atención al cliente (mismo componente que el menú del núcleo; viaja cifrado si hay nube) --- */
+(function(){var API=R||{};var L=function(a){return a;};
+  /* --- V26.60 · chat «Escribinos» (CRM): el celular guarda su chat; en la nube viaja cifrado de punta a punta --- */
+  (function(){
+    if(typeof API.chatOn!=='function') return;
+    var st=document.createElement('style');
+    st.textContent='#rv-chat-fab{position:fixed;right:16px;bottom:84px;z-index:56;min-width:52px;height:52px;border-radius:26px;padding:0 16px;border:1px solid var(--gold,#c9963e);background:var(--charcoal,#222);color:var(--gold-deep,#e6c27a);font:700 14px Poppins,sans-serif;display:none;align-items:center;gap:6px;box-shadow:0 4px 14px rgba(0,0,0,.3);cursor:pointer}'+
+     '#rv-chat-fab .d{width:9px;height:9px;border-radius:50%;background:#e74c3c;display:none}#rv-chat-fab.new .d{display:inline-block}'+
+     '#rv-chat{position:fixed;right:12px;bottom:12px;width:min(380px,calc(100vw - 24px));height:min(560px,calc(100vh - 24px));z-index:12000;background:#fffaf2;color:#2b2216;border-radius:16px;box-shadow:0 10px 40px rgba(0,0,0,.4);display:none;flex-direction:column;overflow:hidden;font-family:Poppins,sans-serif}'+
+     '#rv-chat header{display:flex;align-items:center;gap:8px;padding:12px 14px;background:var(--charcoal,#222);color:#fff}#rv-chat header b{flex:1}#rv-chat header button{background:none;border:0;color:#fff;font-size:22px;min-width:44px;min-height:44px;cursor:pointer}'+
+     '#rv-chat .th{flex:1;overflow:auto;padding:12px;display:flex;flex-direction:column;gap:8px}#rv-chat .m{max-width:85%;padding:8px 11px;border-radius:12px;white-space:pre-wrap;word-break:break-word;font-size:14px}'+
+     '#rv-chat .m.in{align-self:flex-end;background:#e7d5b0}#rv-chat .m.out{align-self:flex-start;background:#fff;border:1px solid #e6dccb}#rv-chat .m.sys{align-self:center;font-size:12px;opacity:.75;background:none}'+
+     '#rv-chat .m small{display:block;opacity:.6;font-size:11px;margin-top:3px}#rv-chat form{padding:10px;border-top:1px solid #e6dccb;display:flex;flex-direction:column;gap:6px}'+
+     '#rv-chat input,#rv-chat textarea{width:100%;box-sizing:border-box;padding:10px;border:1px solid #d8ccb5;border-radius:10px;font:14px Poppins,sans-serif;background:#fff;color:#2b2216}'+
+     '#rv-chat .snd{min-height:46px;border:0;border-radius:10px;background:linear-gradient(135deg,#b8862f,#e6c27a);color:#2b2216;font-weight:700;cursor:pointer}#rv-chat .err{color:#b0302a;font-size:12.5px;min-height:1em}'+
+     '#rv-chat .cs{display:flex;gap:6px;justify-content:center}#rv-chat .cs button{min-width:44px;min-height:44px;border-radius:10px;border:1px solid #d8ccb5;background:#fff;font-size:16px;cursor:pointer}#rv-chat .note{font-size:11.5px;opacity:.7}';
+    document.head.appendChild(st);
+    var fab=document.createElement('button');fab.id='rv-chat-fab';fab.type='button';fab.setAttribute('aria-label',L('Escribinos por chat','Chat with us'));
+    fab.innerHTML='<span aria-hidden="true">💬</span><span class="t"></span><span class="d" aria-hidden="true"></span>';document.body.appendChild(fab);
+    var box=document.createElement('div');box.id='rv-chat';box.setAttribute('role','dialog');box.setAttribute('aria-modal','false');box.setAttribute('aria-label',L('Chat con el comercio','Chat with the shop'));
+    document.body.appendChild(box);var open=false,timer=null,seen=0;
+    function paint(keep){var s=API.chatState();var greet=API.chatGreet()||L('¡Hola! Escribinos y te respondemos por acá.','Hi! Write to us and we will answer here.');
+      var msgs=s?s.msgs:[];var th='<div class="m out">'+esc(greet)+'</div>'+msgs.map(function(m){return '<div class="m '+(m.d==='in'?'in':m.d==='sys'?'sys':'out')+'">'+esc(m.x)+(m.d!=='sys'?'<small>'+(m.d==='out'&&m.u?esc(m.u)+' · ':'')+new Date(m.ts).toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})+'</small>':'')+'</div>';}).join('');
+      if(s&&s.csat) th+='<div class="m sys">'+L('¿Cómo te atendimos?','How did we do?')+'</div><div class="cs">'+[1,2,3,4,5].map(function(v){return '<button type="button" data-cs="'+v+'" aria-label="'+v+' de 5">'+v+'★</button>';}).join('')+'</div>';
+      if(s&&s.nps) th+='<div class="m sys">'+L('Del 0 al 10, ¿nos recomendarías?','From 0 to 10, would you recommend us?')+'</div><div class="cs" style="flex-wrap:wrap">'+[0,1,2,3,4,5,6,7,8,9,10].map(function(v){return '<button type="button" data-np="'+v+'" aria-label="'+v+' de 10">'+v+'</button>';}).join('')+'</div>';
+      var draft=keep&&box.querySelector('#rv-ct')?box.querySelector('#rv-ct').value:'';
+      box.innerHTML='<header><span aria-hidden="true">💬</span><b>'+L('Escribinos','Chat with us')+'</b><button type="button" data-x aria-label="'+L('Cerrar','Close')+'">×</button></header><div class="th" aria-live="polite">'+th+'</div>'+
+       '<form novalidate>'+(s?'':'<input id="rv-cn" maxlength="60" autocomplete="name" placeholder="'+L('Tu nombre','Your name')+'" aria-label="'+L('Tu nombre','Your name')+'"><input id="rv-cw" inputmode="tel" maxlength="20" autocomplete="tel" placeholder="'+L('WhatsApp (opcional)','WhatsApp (optional)')+'" aria-label="WhatsApp">')+
+       '<textarea id="rv-ct" rows="2" maxlength="1500" placeholder="'+L('Escribí tu mensaje…','Type your message…')+'" aria-label="'+L('Mensaje','Message')+'"></textarea><div class="err" role="alert"></div><button class="snd" type="submit">'+L('Enviar','Send')+'</button>'+
+       (s?'':'<div class="note">'+L('Usamos tus datos sólo para responderte. La conversación queda guardada en este celular.','We only use your details to reply. The chat is saved on this phone.')+'</div>')+'</form>';
+      var ta=box.querySelector('#rv-ct');if(draft)ta.value=draft;var t=box.querySelector('.th');t.scrollTop=t.scrollHeight;seen=msgs.length;fab.classList.remove('new');}
+    function poll(){return API.chatPoll().then(function(n){if(n>0){if(open)paint(true);else fab.classList.add('new');}}).catch(function(){});}
+    function show(v){open=v;box.style.display=v?'flex':'none';fab.style.display=v?'none':(API.chatOn()?'flex':'none');clearInterval(timer);
+      if(v){paint();poll();timer=setInterval(poll,8000);var f=box.querySelector(API.chatState()?'#rv-ct':'#rv-cn');if(f)f.focus();}else{timer=setInterval(poll,60000);}}
+    box.addEventListener('click',function(e){if(e.target.closest('[data-x]')){show(false);fab.focus();return;}
+      var c=e.target.closest('[data-cs]');if(c){API.chatCsat(+c.dataset.cs).then(function(r){if(r&&r.ok)paint(true);else toast((r&&r.msg)||L('No se pudo enviar.','Could not send.'));});}
+      var n=e.target.closest('[data-np]');if(n&&API.chatNps){API.chatNps(+n.dataset.np).then(function(r){if(r&&r.ok)paint(true);else toast((r&&r.msg)||L('No se pudo enviar.','Could not send.'));});}});
+    box.addEventListener('keydown',function(e){if(e.key==='Escape'){show(false);fab.focus();}});
+    box.addEventListener('submit',function(e){e.preventDefault();var ta=box.querySelector('#rv-ct'),er=box.querySelector('.err'),b=box.querySelector('.snd');var n=box.querySelector('#rv-cn'),w=box.querySelector('#rv-cw');
+      b.disabled=true;er.textContent='';API.chatSend(ta.value,n?n.value:'',w?w.value:'').then(function(r){b.disabled=false;if(!r||!r.ok){er.textContent=(r&&r.msg)||L('No se pudo enviar.','Could not send.');return;}ta.value='';paint();}).catch(function(){b.disabled=false;er.textContent=L('No se pudo enviar.','Could not send.');});});
+    fab.addEventListener('click',function(){show(true);});
+    function tick(){var on=API.chatOn();fab.querySelector('.t').textContent=L('Escribinos','Chat');if(!open)fab.style.display=on?'flex':'none';if(!on&&open)show(false);
+      var cb2=document.querySelector('.cartbar');fab.style.bottom=cb2?'84px':'18px';}
+    tick();setInterval(tick,1500);if(API.chatState()){poll();timer=setInterval(poll,60000);}
+    window.RAVE_CHAT_OPEN=function(){show(true);};
+  })();
+})();
 load();lastRev=P?P.rev():0;paint();
 })();
 </script>

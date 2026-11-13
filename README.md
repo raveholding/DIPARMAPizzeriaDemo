@@ -1,6 +1,6 @@
 # Di Parma Pizzería de masa madre · Sistema VB (demo)
 
-Demo de evaluación del **Sistema Vincular Business V26.65** (la misma base que Almacén RAVE, esqueleto V27.2) con la **capa de pizzería** de Di Parma (Salta).
+Demo de evaluación del **Sistema Vincular Business V26.70** (la misma base que Almacén RAVE, esqueleto V27.2) con la **capa de pizzería** de Di Parma (Salta).
 Un solo archivo (`index.html`): carta pública adelante y panel del equipo en `#acceso`.
 
 **Demo en línea:** https://raveholding.github.io/DIPARMAPizzeriaDemo/
@@ -8,7 +8,9 @@ Un solo archivo (`index.html`): carta pública adelante y panel del equipo en `#
 - Carta pública (retiro y delivery): `/`
 - Carta de una mesa, la que abre el QR o el tag NFC: `/?mesa=I4` (mesas `I1`–`I10`, exterior `E1`–`E3`, barra `B1`–`B5`)
 - Acceso del equipo: `/#acceso`, el botón «Acceso del equipo» al pie de la carta o **doble clic (doble toque en el celular) sobre el logo** de la carta
-- Usuarios de prueba: ADMIN 1234 · Supervisor 1111 · Caja 0000 · Mozo Martín 2222 · Moza Sofía 3333 · Barra Joaquín 4444 · Cocina Franco 5555 · Cocina Lucía 6666 · Portal del empleado 7777
+- Usuarios de prueba: ADMIN 1234 · Supervisor 1111 · Caja 0000 · Mozo Martín 2222 · Moza Sofía 3333 · Barra Joaquín 4444 · Cocina Franco 5555 · Cocina Lucía 6666 · Cadete Lucas 8888 · Cadete Ramiro 9999 · Portal del empleado 7777
+- **Ingresar con Google** (demostración): elegís una cuenta de ejemplo y entra el usuario vinculado a ese correo
+- App del Club del cliente: `/#mitarjeta` · App del sistema: botón **Instalar app** en el acceso
 
 **Es una demo.** Carta, precios, costos, insumos, lotes de masa, socios, cupones, personal y ventas son de ejemplo. Los datos se guardan sólo en el navegador de quien la prueba y se sincronizan en vivo entre pestañas del mismo equipo (la carta de una mesa en una pestaña y el panel en otra). Las comandas de ejemplo se renuevan solas cada 14 horas o desde *Configuración → Restablecer datos de demostración*.
 **ARCA:** la factura es de demostración (CAE inventado, «sin validez fiscal»). **PedidosYa:** conexión simulada. Grabar tags NFC requiere Chrome en Android; el dictado del asistente, Chrome o Edge.
@@ -42,12 +44,20 @@ La demo anterior era una aplicación aparte. Ahora corre **sobre el Sistema VB c
 7. **Recursos Humanos**, **Club** y **Atención al cliente** con datos de ejemplo.
 
 ## Cómo se compila
-`fuente/` es la fuente del Sistema VB (Almacén RAVE, V26.65) con la capa ya aplicada. La capa está en `fuente/capa-pizzeria/`, separada por dominio: `p11a-pizza-datos.js` (catálogo, fichas, personal, datos de ejemplo), `p11b-pizza-circuito.js` (estado, comanda, cobro, bollos, sincronización y API de la carta), `p11c-pizza-pantallas.js` (pantallas y acciones), `p11d-config-ux.js` (Configuración dinámica, genérica: sirve para el núcleo), `p11-pub-pizza.html` (carta pública), `dp_brand.py` (marca y estilos) y `patch_dp.py`; para aplicarla a una fuente nueva: `python3 capa-pizzeria/patch_dp.py <fuente>`.
+`fuente/` es la fuente del Sistema VB (Almacén RAVE, V26.65) con la capa ya aplicada. La capa está en `fuente/capa-pizzeria/`, separada por dominio: `p11a-pizza-datos.js` (catálogo, fichas, personal, datos de ejemplo), `p11b-pizza-circuito.js` (estado, comanda, cobro, bollos, sincronización y API de la carta), `p11c-pizza-pantallas.js` (pantallas, acciones, Google demo y app del Club), `p11-pub-pizza.html` (carta pública), `dp_brand.py` (marca y estilos) y `patch_dp.py`; para aplicarla a una fuente nueva: `python3 capa-pizzeria/patch_dp.py <fuente>`.
 
 ```
 cd fuente && python3 build.py pizza ../index.html
 ```
 Pruebas en navegador real (`fuente/capa-pizzeria/pruebas/`): `dp1.py` (carta de la mesa → mozo → caja → cocina → cobro con descuento de insumos; roles y asistente), `dp2.py` (delivery, PedidosYa, rendición, circuito en vivo), `dp3_auditoria.py` (axe-core WCAG 2 A/AA, objetivos táctiles y desbordes a 360 px, en claro y oscuro) `dp4_teclado_seguridad.py` (teclado, canal entre pestañas, límites de la carta) y `dp5_config_logo.py` (acceso por el logo y Configuración dinámica).
+
+## V27.9 (13/11/2026) · base V26.70
+- **Atención al cliente con conexión mejorada:** el **Centro de canales** del núcleo («Conectar con un clic»: WhatsApp, Instagram, Messenger, Telegram, correo, TikTok, con el estado de cada uno) y el chat **«Escribinos»** dentro de la carta de Di Parma (viaja cifrado cuando hay nube; en la demo queda en el navegador).
+- **Botón para descargar la app:** «📲 Instalar la app de Di Parma» en la carta y en el Club; abre la **app del Club** del núcleo (tarjeta, beneficios, pedidos y contacto) con los colores de Di Parma. Para el equipo, «Instalar app» en el acceso. En Android/Chrome/Edge abre el instalador; en iPhone muestra los 3 pasos; funciona sin señal. Íconos y manifiestos con el logo de Di Parma.
+- **Accesos con Google:** botón «Ingresar con Google» en el acceso del equipo. En la demo es una **demostración** (cuentas de ejemplo, queda en auditoría `LOGIN_GOOGLE`); en el sistema publicado usa el Ingreso con Google real del núcleo (Supabase + PKCE), configurable con su asistente en Configuración → Equipo y seguridad.
+- **Delivery propio → Reparto y despacho del núcleo:** al quedar listo en cocina, «Enviar a Reparto» crea el envío (cobrar en la puerta): hoja de ruta, **Mi hoja de ruta** en el celular del cadete (Google Maps/Waze, código de entrega) y **rendición ciega** en caja, donde se registra la venta y se descuentan los insumos. El estado del envío vuelve solo a la comanda.
+- La **Configuración por grupos** ahora es la del núcleo (V26.66, con buscador): se retiró la versión propia de la capa para no duplicar.
+- Pruebas nuevas: `dp7_app_google_chat.py`; `dp2.py` actualizada al reparto del núcleo.
 
 ## Corrección V27.8 · menú lateral en celular y tablet
 En pantallas de hasta 900 px, al abrir el menú con ☰ el panel tapaba el botón y no había forma de cerrarlo (sólo eligiendo una pantalla). Ahora se cierra con **✕ Cerrar menú**, tocando afuera (fondo oscuro) o con **Esc**, y ☰ lo vuelve a abrir siempre. Prueba: `dp6_menu_movil.py`.

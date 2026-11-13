@@ -1,0 +1,40 @@
+{
+ "lang": "es-AR",
+ "dir": "ltr",
+ "display": "standalone",
+ "display_override": [
+  "standalone",
+  "minimal-ui"
+ ],
+ "background_color": "#0b0a0a",
+ "theme_color": "#0b0a0a",
+ "scope": "./",
+ "icons": [
+  {
+   "src": "app-192.png",
+   "sizes": "192x192",
+   "type": "image/png"
+  },
+  {
+   "src": "app-512.png",
+   "sizes": "512x512",
+   "type": "image/png"
+  },
+  {
+   "src": "app-512m.png",
+   "sizes": "512x512",
+   "type": "image/png",
+   "purpose": "maskable"
+  }
+ ],
+ "id": "./?app=club",
+ "name": "Club Di Parma",
+ "short_name": "Club Di Parm",
+ "description": "Tu tarjeta del Club, beneficios, pedidos y contacto con el local.",
+ "start_url": "./#mitarjeta",
+ "orientation": "portrait",
+ "categories": [
+  "shopping",
+  "lifestyle"
+ ]
+}

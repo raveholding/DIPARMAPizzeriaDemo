@@ -6,7 +6,7 @@ const DP_ST={pend_mozo:{l:'Esperando al mozo',s:'Mozo',step:1,c:'#7c3aed'},pend_
 const DP_CH={qr:'QR / NFC',mozo:'Mozo',voz:'Asistente',pedidosya:'PedidosYa',delivery:'Delivery propio',web:'Carta web',mostrador:'Mostrador'};
 const DP_ACTIVE=['pend_mozo','pend_caja','pend_cocina','preparando','listo','en_camino'];
 function dpSeed(){const T=now();const D={v:1,seedAt:T,rev:T,tables:[],orders:[],carts:{},seq:{order:0,py:48210},notifs:[],nseq:0,
- cadetes:{e9:{estado:'disponible',ent:3,efectivo:0},e10:{estado:'disponible',ent:2,efectivo:980000}},py:{connected:true,autoAccept:true,demoFeed:false,lastSync:T-40000,comision:25},
+ py:{connected:true,autoAccept:true,demoFeed:false,lastSync:T-40000,comision:25},
  ferm:{bolloPeso:260,hidr:70,madre:{lastFeed:T-9*DPH,every:12,ratio:'1:2:2',hidr:100,temp:24,rise:2.3,feeds:[]},
   lotes:[{id:'L1021',start:T-80*DPH,hours:48,bollos:40,peso:260,hidr:70,temps:[4,4,4.5,4,4,4.2],note:'',ing:true},{id:'L1022',start:T-52*DPH,hours:48,bollos:60,peso:260,hidr:70,temps:[4,4.2,4,4.1,4,3.9,4],note:'Muy buen alveolado',ing:true},
    {id:'L1023',start:T-30*DPH,hours:48,bollos:36,peso:260,hidr:72,temps:[22,4,4.1,4,4.3],note:''},{id:'L1024',start:T-2*DPH,hours:72,bollos:48,peso:260,hidr:70,temps:[23,23.5],note:'Bloque a temperatura ambiente'}]}};
@@ -55,7 +55,7 @@ function dpTableState(t){const os=dpSessOrders(t),cart=(G().carts[t.id]||[]).len
 let DP_BC=null;try{if(isPizzaBuild()&&typeof BroadcastChannel!=='undefined'){DP_BC=new BroadcastChannel('svb-diparma-'+((window.RAVE_BUILD||{}).db||'demo'));
  DP_BC.onmessage=e=>{const m=e.data||{};if(!dpValid(m.dp)||!S||(S.dp&&(S.dp.rev||0)>=m.dp.rev))return;S.dp=m.dp;save();dpLive(true);};}}catch(e){}
 /* un estado recibido de otra pestaña se acepta sólo si tiene la forma esperada (nunca se mezcla basura en la base) */
-function dpValid(d){if(!d||typeof d!=='object'||!Number.isFinite(d.rev))return false;if(!Array.isArray(d.tables)||!Array.isArray(d.orders)||!d.carts||typeof d.carts!=='object'||!d.ferm||!Array.isArray(d.ferm.lotes)||!d.py||!d.cadetes)return false;
+function dpValid(d){if(!d||typeof d!=='object'||!Number.isFinite(d.rev))return false;if(!Array.isArray(d.tables)||!Array.isArray(d.orders)||!d.carts||typeof d.carts!=='object'||!d.ferm||!Array.isArray(d.ferm.lotes)||!d.py)return false;
  const st=Object.keys(DP_ST);return d.tables.length<=200&&d.orders.length<=5000&&d.tables.every(t=>t&&typeof t.id==='string'&&/^[A-Z]\d{1,2}$/.test(t.id))&&d.orders.every(o=>o&&typeof o.id==='string'&&st.includes(o.status)&&Array.isArray(o.items)&&o.items.every(l=>l&&typeof l.pid==='string'&&Number.isFinite(l.qty)));}
 function dpCommit(noRender){const D=G();D.rev=Math.max(now(),(D.rev||0)+1);save();try{if(DP_BC)DP_BC.postMessage({dp:JSON.parse(JSON.stringify(D))});}catch(e){}if(!noRender)dpLive(true);}
 function dpNotify(txt,to,extra){const D=G();const n=Object.assign({id:++D.nseq,t:now(),to,txt},extra||{});D.notifs.unshift(n);if(D.notifs.length>80)D.notifs.length=80;
@@ -81,10 +81,10 @@ const DP_FLOW={
  ready(o,by){if(!['pend_cocina','preparando'].includes(o.status))return 'El pedido #'+o.n+' no está en preparación.';dpLog(o,'listo',by);o.readyAt=now();
   dpNotify('¡Listo! Pedido #'+o.n+' · '+dpOrigin(o)+(dpIsDel(o)?(o.channel==='pedidosya'?' · avisado al rider de PedidosYa':' · asigná un cadete'):' · para servir'),['mozo','caja','admin'],{tableId:o.tableId,k:'ok'});audit('COMANDA_LISTA','#'+o.n);return null;},
  dispatch(o,cad,by){if(o.status!=='listo')return 'El pedido #'+o.n+' todavía no está listo.';
-  if(o.channel==='delivery'){if(!cad)return 'Elegí un cadete.';o.cadete=cad;const c=G().cadetes[cad]||(G().cadetes[cad]={estado:'disponible',ent:0,efectivo:0});c.estado='en_reparto';}
-  dpLog(o,'en_camino',by);dpNotify('Pedido #'+o.n+' salió '+(cad?'con '+dpFirst(dpEmpN(cad)):'con el rider de PedidosYa')+'.',['caja','admin']);audit('COMANDA_DESPACHO','#'+o.n+(cad?' · cadete '+dpEmpN(cad):' · PedidosYa'));return null;},
+  if(o.channel==='delivery'){const e=dpToReparto(o);if(typeof e==='string')return e;dpLog(o,'en_camino',by);o.envioId=e.id;o.envioN=e.n;
+   dpNotify('Pedido #'+o.n+' pasó a Reparto (envío #'+e.n+'): armá la hoja de ruta y el cadete lo sigue en su celular.',['caja','admin']);audit('COMANDA_A_REPARTO','#'+o.n+' → envío #'+e.n);return null;}
+  dpLog(o,'en_camino',by);dpNotify('Pedido #'+o.n+' salió con el rider de PedidosYa.',['caja','admin']);audit('COMANDA_DESPACHO','#'+o.n+' · PedidosYa');return null;},
  deliver(o,by){if(!['listo','en_camino'].includes(o.status))return 'El pedido #'+o.n+' no está listo para entregar.';
-  if(o.cadete&&G().cadetes[o.cadete]){const c=G().cadetes[o.cadete];c.estado='disponible';c.ent++;if(!o.paid){c.efectivo+=dpOrderTot(o);o.cadCash=true;dpSaleOf(o,'efectivo','local');}}
   dpLog(o,'entregado',by);audit('COMANDA_ENTREGADA','#'+o.n+' · '+dpOrigin(o));if(o.channel==='pedidosya')dpSaleOf(o,'pedidosya','pedidosya');return null;},
  cancel(o,why,by){if(['entregado','cancelado'].includes(o.status))return 'El pedido #'+o.n+' ya está cerrado.';dpLog(o,'cancelado',by);o.cancelWhy=why||'';
   dpNotify('Pedido #'+o.n+' cancelado'+(why?': '+why:'')+'.',['mozo','caja','cocina','admin'],{k:'bad'});audit('COMANDA_CANCELADA','#'+o.n+' · '+(why||'sin motivo'));return null;}};
@@ -96,6 +96,20 @@ function dpBollosNeed(o){let n=0;o.items.forEach(l=>{const p=dpP(l.pid);if(p&&is
 /* PedidosYa entregado: venta del canal PedidosYa (pagado online), con descuento de insumos por ficha */
 function dpSaleOf(o,met,ch){if(o.saleId)return;if(!openSess()){dpNotify('Pedido #'+o.n+' entregado sin caja abierta: registrá la venta en Vender cuando abras la caja.',['caja','admin'],{k:'bad'});return;}const lines=dpLines([o]);
  try{const r=commitSale(met,false,ch,lines,met==='efectivo'?{recv:dpOrderTot(o),noAdj:true}:{noAdj:true});if(r&&!r.err){o.saleId=r.sale.id;o.paid=true;r.sale.dpRef=dpOrigin(o);audit(ch==='pedidosya'?'PEDIDOSYA_VENTA':'DELIVERY_VENTA',dpOrigin(o)+' → '+r.sale.n);}else if(r&&r.err)dpNotify('Pedido #'+o.n+': '+r.err,['caja','admin'],{k:'bad'});}catch(e){console.warn(e);}}
+/* V27.9 · delivery propio → Reparto y despacho del núcleo (bandeja, hoja de ruta, copiloto del cadete y rendición ciega).
+   Viaja «cobrar en la puerta»: la venta se registra recién en la rendición, con el medio con que realmente se cobró, y ahí se
+   descuentan los insumos por la ficha técnica (la caja cuadra siempre, regla del núcleo). */
+function dpToReparto(o){if(typeof repNuevo!=='function'||typeof repCfg!=='function')return 'El módulo de Reparto no está disponible.';const c=repCfg();if(!c.on)return 'Activá Reparto y despacho en su pantalla.';
+ if(!dpCan('reparto')&&!dpCan('dp_caja'))return 'Despachar lo hace caja.';const cu=o.customer||{};const z=(c.zonas||[]).find(x=>x.activo!==false)||null;const tar=z?z.tarifa||0:0;
+ const items=dpLines([o]);if(tar){const pe=typeof repProd==='function'?repProd():null;if(pe)items.push({pid:pe.id,name:'Envío a domicilio',rubro:pe.rubro,qty:1,price:tar,cost:0,unit:'u',list:tar});}
+ const tel=String(cu.tel||'').replace(/[^\d]/g,'');const e=repNuevo({orig:o.via==='web'?'menu':'tel',cli:{nombre:cu.name||'Cliente',tel:tel.length>=6?cu.tel:'387 000-0000',dir:cu.addr||'',loc:'Salta',ref:'Comanda #'+o.n,lat:null,lng:null},
+  zona:z?z.id:'',tarifa:tar,items,total:items.reduce((a,l)=>a+Math.round(l.qty*l.price),0),cobro:{modo:'efectivo',abona:0},nota:'Di Parma · comanda #'+o.n+(cu.pago?' · '+cu.pago:'')});
+ try{repSetEst(e,'listo',{nota:'sale de cocina'});}catch(x){e.estado='listo';}return e;}
+/* el estado del envío vuelve a la comanda (entregado, cliente ausente, volvió al local, cancelado) */
+function dpRepSync(){const D=S.dp;if(!D||!S.envios)return false;let ch=false;D.orders.forEach(o=>{if(!o.envioId||['entregado','cancelado'].includes(o.status))return;const e=S.envios.find(x=>x.id===o.envioId);if(!e)return;
+ if(e.estado==='entregado'){dpLog(o,'entregado','Reparto');o.paid=!!e.sold||!!e.saleId;o.saleId=e.saleId||'';ch=true;}
+ else if(e.estado==='cancelado'){dpLog(o,'cancelado','Reparto');o.cancelWhy='cancelado en Reparto';ch=true;}
+ else if(o.repEst!==e.estado){o.repEst=e.estado;ch=true;}});return ch;}
 /* comanda(s) → líneas de Vender (el adicional va como línea propia para que descuente sus insumos) */
 function dpLines(os){const M=new Map();const add=(pid,q,src)=>{const p=dpP(pid);if(!p)return;const k=pid;const x=M.get(k);if(x){x.qty+=q;}else M.set(k,{pid:p.id,name:pfull(p),rubro:p.rubro,qty:q,price:p.price,cost:isKit(p)?kitCost(p):p.cost,unit:p.unit,list:p.price});};
  os.forEach(o=>o.items.forEach(l=>{add(l.pid,l.qty);(l.ex||[]).forEach(e=>add(e,l.qty));}));return [...M.values()];}
@@ -140,7 +154,7 @@ window.DP_API={
   if(!t&&G().orders.filter(x=>x.channel!=='qr'&&x.status==='pend_caja'&&now()-x.createdAt<10*DPM).length>=12)return{ok:false,msg:'Estamos con muchos pedidos: probá en unos minutos o llamanos.'};
   DP_RL[key]=now();
   if(!t){const nm=String(o.name||'').trim().slice(0,40),tel=String(o.tel||'').replace(/[^\d+ -]/g,'').slice(0,20),addr=String(o.addr||'').trim().slice(0,80);if(nm.length<2)return{ok:false,msg:'Falta tu nombre.'};if(tel.replace(/\D/g,'').length<8)return{ok:false,msg:'Revisá tu celular.'};if(o.modo==='delivery'&&addr.length<4)return{ok:false,msg:'Falta la dirección de entrega.'};
-   const r=DP_FLOW.create({channel:o.modo==='delivery'?'delivery':'web',customer:{name:nm,tel,addr:o.modo==='delivery'?addr:'',pago:o.modo==='delivery'?'Paga al recibir':'Paga al retirar'},items:L,status:'pend_caja',by:'Carta web'});dpCommit(false);return{ok:true,id:r.id,n:r.n};}
+   const r=DP_FLOW.create({channel:o.modo==='delivery'?'delivery':'web',via:'web',customer:{name:nm,tel,addr:o.modo==='delivery'?addr:'',pago:o.modo==='delivery'?'Paga al recibir':'Paga al retirar'},items:L,status:'pend_caja',by:'Carta web'});dpCommit(false);return{ok:true,id:r.id,n:r.n};}
   const r=DP_FLOW.create({channel:'qr',tableId:t.id,items:L,status:'pend_mozo',by:'QR '+t.label.toLowerCase()});delete G().carts[t.id];dpCommit(false);return{ok:true,id:r.id,n:r.n};},
  call:mesa=>{const t=dpT(String(mesa||'').toUpperCase());if(!t)return false;if(!t.session)dpOpenSess(t,2,true);t.session.call=true;dpNotify(t.label+' llama al mozo.',['mozo','admin'],{tableId:t.id});audit('MESA_LLAMA_MOZO',t.label);dpCommit(false);return true;},
  bill:mesa=>{const t=dpT(String(mesa||'').toUpperCase());if(!t||!t.session)return false;t.session.bill=true;dpNotify(t.label+' pidió la cuenta: '+money(dpTableTot(t))+'.',['mozo','caja','admin'],{tableId:t.id});audit('MESA_PIDE_CUENTA',t.label);dpCommit(false);return true;},
