@@ -168,7 +168,7 @@ const UX_DESC={inicio:'Cómo viene el negocio hoy: ventas, órdenes, stock y ale
  crm:'Todos los canales en una bandeja: respondé, cobrá, cotizá y agendá sin salir del chat.',
  personal:'Equipo, fichadas y horas trabajadas.',rrhh:'Legajos, fichaje omnicanal, turnos y licencias, reportes para el contador y —en el Plan Completo— nómina, aprobaciones, vacaciones, documentos y reclutamiento.',portal:'Tus fichadas, turnos, solicitudes, liquidaciones y avisos.',tareas:'Organigrama y tareas por puesto, diarias o semanales.',
  menuadmin:'Lo que ve tu cliente en el menú o la tienda: catálogo, textos, envíos y publicación.',
- legal:'Textos legales y lista de verificación de cumplimiento.',dispositivos:'Impresoras, balanzas, lectores y diseño del ticket.',
+ legal:'Textos legales y lista de verificación de cumplimiento.',dispositivos:(typeof isPizzaBuild==='function'&&isPizzaBuild())?'Impresoras de comandas y tickets, cajón, lectores y diseño del ticket.':'Impresoras, balanzas, lectores y diseño del ticket.',
  impex:'Importá o exportá artículos, clientes, ventas y cierres en CSV o Excel.',integ:'Conexiones con otros servicios y su estado.',
  roles:'Personas con acceso y qué puede hacer cada rol.',auditoria:'Registro de todo lo que se hizo, por quién y cuándo, con verificación de integridad.',
  config:'Datos del negocio, módulos que se activan y preferencias.',nube:'Sincronización entre equipos, copias y estado de la conexión.',
@@ -208,7 +208,7 @@ function uxSecCards(v){const out=[];[...uxRoot(v).children].forEach(c=>{if(c.id=
    Herramientas, Respaldo y datos) con ícono, descripción y cantidad; al entrar se abre el último grupo usado (o «Negocio»); el buscador
    busca en TODOS los grupos y, al borrarlo, vuelve al grupo en el que estabas. En el celular el menú pasa a una fila deslizable. */
 const UX_CG={config:[['Negocio',/modelo de negocio|tipo de negocio|^comercio|rubros|categor[ií]as|cajas y sucursales/i,'Modelo de negocio, datos del comercio, rubros y cajas','M3 21h18M5 21V8l7-5 7 5v13M9 21v-6h6v6'],
- ['Ventas y cobros',/cobro|recargo|fiado|cuenta corriente|mayorista|medio de pago|precio/i,'Medios de pago, recargos, fiado y mayorista','M3 7h18v10H3zM3 11h18M7 15h3'],
+ ['Ventas y cobros',/cobro|recargo|fiado|cuenta corriente|mayorista|medio de pago|precio/i,((typeof isPizzaBuild==='function'&&isPizzaBuild())?'Medios de pago, recargos y fiado':'Medios de pago, recargos, fiado y mayorista'),'M3 7h18v10H3zM3 11h18M7 15h3'],
  ['Clientes y NFC',/nfc|club|fideliz|cliente/i,'Lector NFC, tarjetas y Club','M6 8.3a5.5 5.5 0 0 1 0 7.4M9.4 5.8a9.5 9.5 0 0 1 0 12.4M12.8 3.3a13.4 13.4 0 0 1 0 17.4'],
  ['Equipo y seguridad',/ingreso|apariencia|tema del panel|seguridad|recuperaci/i,'Ingreso con Google y apariencia','M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z'],
  ['Herramientas',/\bia\b|asistente|telegram|r2ave|centro|lectura de facturas/i,'Asistente, IA y bots','M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z'],

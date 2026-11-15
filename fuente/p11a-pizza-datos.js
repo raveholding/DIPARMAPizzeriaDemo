@@ -85,7 +85,7 @@ function dpKit(f,k,bollo){const L=[];Object.entries(f).forEach(([i,q])=>{const i
  if(bollo)L.unshift({pid:'dp-bollo',qty:bollo});return L;}
 function dpCatalog(){const P=[];const ean=i=>typeof soloEan==='function'?soloEan(300+i):'';let n=0;
  DP_DISH.forEach(([id,cat,nm,desc,price,f,bol,art,o])=>{
-  P.push({id,name:nm,sub:o.sizes?'Grande · 8 porciones':'',grupo:'',rubro:cat,price:price*100,cost:0,stock:0,unit:'u',barcode:ean(n++),plu:'',menu:true,active:true,desc,featured:!!o.star,demo:true,kit:dpKit(f,1,bol),dp:{art,sizes:!!o.sizes,alc:!!o.alc,star:!!o.star}});
+  P.push({id,name:nm,sub:o.sizes?'Grande · 8 porciones':'',grupo:'',rubro:cat,price:price*100,cost:0,stock:0,unit:'u',barcode:ean(n++),plu:'',menu:true,active:true,desc,featured:!!o.star,demo:true,kit:dpKit(f,1,bol),dp:{art,sizes:!!o.sizes,alc:!!o.alc,star:!!o.star},...(o.sizes?{fr:[{l:'Media',f:0.5,price:dpHalfPrice(price)*100}]}:{})});
   if(o.sizes)P.push({id:id+'_i',name:nm,sub:'Individual · 4 porciones',grupo:'',rubro:cat,price:dpIndPrice(price)*100,cost:0,stock:0,unit:'u',barcode:ean(n++),plu:'',menu:false,active:true,desc,demo:true,kit:dpKit(f,DP_IND,bol*DP_INDB),dp:{art,of:id,ind:1}});});
  DP_DRINK.forEach(([id,nm,price,cost,st,art,alc])=>P.push({id,name:nm,sub:'',grupo:'',rubro:'dp-beb',price:price*100,cost:cost*100,stock:st,unit:'u',barcode:ean(n++),plu:'',menu:true,active:true,desc:'',demo:true,dp:{art:{dish:art},alc:!!alc}}));
  DP_EXTRA.forEach(([id,nm,price,f])=>P.push({id,name:nm,sub:'adicional',grupo:'',rubro:'dp-adi',price:price*100,cost:0,stock:0,unit:'u',barcode:'',plu:'',menu:false,active:true,desc:'',demo:true,kit:dpKit(f,1,0),dp:{extra:1}}));
@@ -106,6 +106,8 @@ const dpEmpN=id=>{const e=dpEmp(id);return e?String(e.name).replace(/ \(ejemplo\
 const dpStaffOf=r=>S.employees.filter(e=>e.active&&e.dpRol===r);
 
 /* ---------- base de la demo (después de soloBase; antes de RR. HH.) ---------- */
+/* V27.10 · media pizza grande con precio propio (venta fraccionada del núcleo): ~54 % del entero, redondeado a $ 500 */
+const dpHalfPrice=pr=>Math.round(pr*0.54/500)*500;
 function pizzaBase(d){if(typeof window==='undefined'||!window.__dpReady)return d;
  const NM='Di Parma';
  d.tenant=Object.assign({},d.tenant,{name:NM,legal:'Di Parma Pizzería (demo de ejemplo)',slogan:'Pizzería de masa madre · Salta',address:'Balcarce 850, Salta Capital (dato de ejemplo)',wa:'',phone:'',caja:1,ig:'',fb:''});

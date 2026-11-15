@@ -102,11 +102,11 @@ function cjSalesHTML(sess,ro,tie){
  const tieOk=tie===undefined||tie===null?null:(tie===T.ok.t&&Object.keys(T.med).reduce((a,k)=>a+T.med[k].t,0)===tie);
  let h=`<div class="row"><h3 class="sp">Ventas de esta caja</h3><span class="sm mut">${all.length} operación${all.length===1?'':'es'} en el turno · sin límite</span></div>
  <div class="grid g4 cjtot" aria-label="Totales de la sesión"><div class="card kpi"><b>${money(T.ok.t)}</b><span>Ventas confirmadas (${T.ok.n})${tieOk===null?'':tieOk?' · <span class="tag ok">cierra con el arqueo</span>':' · <span class="tag bad">NO coincide con el arqueo</span>'}</span></div>
- <div class="card kpi"><b>${money(T.ch.Minorista.t)}</b><span>Minorista (${T.ch.Minorista.n})</span></div><div class="card kpi"><b>${money(T.ch.Mayorista.t)}</b><span>Mayorista (${T.ch.Mayorista.n})</span></div>
+ ${(typeof wsOn==='function'&&wsOn())?`<div class="card kpi"><b>${money(T.ch.Minorista.t)}</b><span>Minorista (${T.ch.Minorista.n})</span></div><div class="card kpi"><b>${money(T.ch.Mayorista.t)}</b><span>Mayorista (${T.ch.Mayorista.n})</span></div>`:''}
  <div class="card kpi"><b>${money(T.pend.t)}</b><span>Pendientes de cobro (${T.pend.n}) · no suman</span></div></div>
  <p class="sm">Por medio de pago: ${Object.keys(T.med).map(k=>esc(MET[k]||k)+' <b>'+money(T.med[k].t)+'</b> ('+T.med[k].n+')').join(' · ')||'—'}.</p>
  <p class="sm">Aparte, <b>no suman como venta</b>: anuladas ${T.anu.n} (${money(T.anu.t)}) · notas de crédito ${T.nc.n} (${money(T.nc.t)}).</p>
- <div class="cjflt noprint"><div><label for="cjf-ch">Canal</label><select id="cjf-ch" data-cjf="ch">${opt('','Todos',CJF.ch)}${opt('Minorista','Minorista',CJF.ch)}${opt('Mayorista','Mayorista',CJF.ch)}</select></div>
+ <div class="cjflt noprint"><div ${(typeof wsOn==='function'&&wsOn())?'':'hidden'}><label for="cjf-ch">Canal</label><select id="cjf-ch" data-cjf="ch">${opt('','Todos',CJF.ch)}${opt('Minorista','Minorista',CJF.ch)}${opt('Mayorista','Mayorista',CJF.ch)}</select></div>
  <div><label for="cjf-st">Estado</label><select id="cjf-st" data-cjf="st">${opt('','Todos',CJF.st)}${opt('ok','Confirmada',CJF.st)}${opt('pendiente','Pendiente de cobro',CJF.st)}${opt('anulada','Anulada',CJF.st)}${opt('nc','Nota de crédito',CJF.st)}</select></div>
  <div><label for="cjf-med">Medio de pago</label><select id="cjf-med" data-cjf="med">${opt('','Todos',CJF.med)}${meds.map(m=>opt(m,MET[m]||m,CJF.med)).join('')}</select></div>
  <div><label for="cjf-vend">Vendedor / cajero</label><select id="cjf-vend" data-cjf="vend">${opt('','Todos',CJF.vend)}${users.map(u=>opt(u,u,CJF.vend)).join('')}</select></div>

@@ -31,16 +31,20 @@ function dpSeed(){const T=now();const D={v:1,seedAt:T,rev:T,tables:[],orders:[],
  O({channel:'pedidosya',customer:{name:'Mariana S.',addr:'Caseros 2010',py:'PY-'+(++D.seq.py)},items:[Ln('p_ort',1),Ln('p_4q_i',1),Ln('b_agu',2)],status:'preparando',mAgo:6,eta:22,etaAt:T+17*DPM,paid:true,_log:[['pend_cocina',6,'PedidosYa (auto)'],['preparando',5,'Franco']]});
  D.carts.I5=[Ln('p_sal',1),Ln('p_marg_i',1,[],'sin albahaca')];sess('I5',4,2);
  D.notifs.push({id:++D.nseq,t:T-DPM,to:['mozo','admin'],tableId:'I4',txt:'Mesa 4 hizo un pedido desde el QR (4 ítems). Esperando validación.'});}
-function G(){if(!S.dp||!S.dp.tables||now()-(S.dp.seedAt||0)>14*DPH){dpSeed();try{dpBollosSync();}catch(e){}save();}return S.dp;}
+function G(){if(!S.dp||!S.dp.tables||now()-(S.dp.seedAt||0)>14*DPH){dpSeed();try{dpBollosSync();}catch(e){}save();}
+ if(S.cfg&&!S.cfg.dpFr){S.cfg.dpFr=1;S.products.forEach(p=>{if(p.dp&&p.dp.sizes&&!p.dp.ind&&!(p.fr&&p.fr.length))p.fr=[{l:'Media',f:0.5,price:dpHalfPrice(p.price/100)*100}];});save();} /* V27.10: datos guardados antes de la media pizza */
+ return S.dp;}
 const dpT=id=>G().tables.find(t=>t.id===id);
 const dpO=id=>G().orders.find(o=>o.id===id);
 const dpOn=n=>G().orders.find(o=>o.n===n);
 const dpP=id=>prod(id);
-const dpLineUnit=l=>{const p=dpP(l.pid);return (p?p.price:0)+(l.ex||[]).reduce((a,e)=>a+((dpP(e)||{}).price||0),0);};
+/* V27.10 · media pizza: la línea de comanda lleva h:1 y usa el precio de la fracción «Media» del producto */
+const dpHalf=p=>(typeof frList==='function'?frList(p):[]).find(x=>x.f===0.5)||null;
+const dpLineUnit=l=>{const p=dpP(l.pid);const h=l.h&&p?dpHalf(p):null;return (h?h.price:p?p.price:0)+(l.ex||[]).reduce((a,e)=>a+((dpP(e)||{}).price||0),0);};
 const dpLineTot=l=>dpLineUnit(l)*l.qty;
 const dpOrderTot=o=>o.items.reduce((a,l)=>a+dpLineTot(l),0);
 const dpItems=o=>o.items.reduce((a,l)=>a+l.qty,0);
-const dpLineName=l=>{const p=dpP(l.pid);if(!p)return '(plato eliminado)';return p.name+(p.dp&&p.dp.ind?' (individual)':'');};
+const dpLineName=l=>{const p=dpP(l.pid);if(!p)return '(plato eliminado)';return (l.h?'½ ':'')+p.name+(p.dp&&p.dp.ind?' (individual)':'');};
 const dpLineDesc=l=>(l.ex||[]).length?'+ '+l.ex.map(e=>(dpP(e)||{name:'?'}).name).join(', '):'';
 function dpOrigin(o){if(o.tableId){const t=dpT(o.tableId);return t?t.label:o.tableId;}if(o.channel==='pedidosya')return 'PedidosYa '+((o.customer||{}).py||'');if(o.channel==='delivery')return 'Delivery · '+((o.customer||{}).name||'');if(o.channel==='web')return 'Retiro · '+((o.customer||{}).name||'');return 'Mostrador';}
 const dpIsDel=o=>o.channel==='pedidosya'||o.channel==='delivery';
@@ -92,7 +96,7 @@ const DP_NEED={validate:'dp_mozo',confirm:'dp_caja',accept:'dp_cocina',ready:'dp
 const DP_WHO={validate:'el mozo',confirm:'caja',accept:'cocina',ready:'cocina',dispatch:'caja',deliver:'el mozo o caja',cancel:'caja'};
 function dpDo(act,o,...a){if(!dpCan(DP_NEED[act]))return 'Eso lo hace '+DP_WHO[act]+'. Ingresá con ese perfil (o como administración).';return DP_FLOW[act](o,...a);}
 function dpOpenSess(t,g,silent){t.session={id:uid(),openedAt:now(),guests:g||2,call:false,bill:false};if(!silent)audit('MESA_ABIERTA',t.label+' · '+(g||2)+' personas');}
-function dpBollosNeed(o){let n=0;o.items.forEach(l=>{const p=dpP(l.pid);if(p&&isKit(p))p.kit.forEach(k=>{if(k.pid==='dp-bollo')n+=k.qty*l.qty;});});return Math.round(n*10)/10;}
+function dpBollosNeed(o){let n=0;o.items.forEach(l=>{const p=dpP(l.pid);if(p&&isKit(p))p.kit.forEach(k=>{if(k.pid==='dp-bollo')n+=k.qty*l.qty*(l.h?0.5:1);});});return Math.round(n*10)/10;}
 /* PedidosYa entregado: venta del canal PedidosYa (pagado online), con descuento de insumos por ficha */
 function dpSaleOf(o,met,ch){if(o.saleId)return;if(!openSess()){dpNotify('Pedido #'+o.n+' entregado sin caja abierta: registrá la venta en Vender cuando abras la caja.',['caja','admin'],{k:'bad'});return;}const lines=dpLines([o]);
  try{const r=commitSale(met,false,ch,lines,met==='efectivo'?{recv:dpOrderTot(o),noAdj:true}:{noAdj:true});if(r&&!r.err){o.saleId=r.sale.id;o.paid=true;r.sale.dpRef=dpOrigin(o);audit(ch==='pedidosya'?'PEDIDOSYA_VENTA':'DELIVERY_VENTA',dpOrigin(o)+' → '+r.sale.n);}else if(r&&r.err)dpNotify('Pedido #'+o.n+': '+r.err,['caja','admin'],{k:'bad'});}catch(e){console.warn(e);}}
@@ -111,8 +115,8 @@ function dpRepSync(){const D=S.dp;if(!D||!S.envios)return false;let ch=false;D.o
  else if(e.estado==='cancelado'){dpLog(o,'cancelado','Reparto');o.cancelWhy='cancelado en Reparto';ch=true;}
  else if(o.repEst!==e.estado){o.repEst=e.estado;ch=true;}});return ch;}
 /* comanda(s) → líneas de Vender (el adicional va como línea propia para que descuente sus insumos) */
-function dpLines(os){const M=new Map();const add=(pid,q,src)=>{const p=dpP(pid);if(!p)return;const k=pid;const x=M.get(k);if(x){x.qty+=q;}else M.set(k,{pid:p.id,name:pfull(p),rubro:p.rubro,qty:q,price:p.price,cost:isKit(p)?kitCost(p):p.cost,unit:p.unit,list:p.price});};
- os.forEach(o=>o.items.forEach(l=>{add(l.pid,l.qty);(l.ex||[]).forEach(e=>add(e,l.qty));}));return [...M.values()];}
+function dpLines(os){const M=new Map();const add=(pid,q,h)=>{const p=dpP(pid);if(!p)return;const hf=h?dpHalf(p):null;const k=pid+(hf?'#h':'');const x=M.get(k);if(x){x.qty+=q;}else{const cu=isKit(p)?kitCost(p):p.cost;M.set(k,hf?{pid:p.id,name:p.name+' · '+hf.l,rubro:p.rubro,qty:q,price:hf.price,cost:Math.round(cu*hf.f),unit:'u',list:hf.price,frac:hf.f,fl:hf.l}:{pid:p.id,name:pfull(p),rubro:p.rubro,qty:q,price:p.price,cost:cu,unit:p.unit,list:p.price});}};
+ os.forEach(o=>o.items.forEach(l=>{add(l.pid,l.qty,l.h);(l.ex||[]).forEach(e=>add(e,l.qty));}));return [...M.values()];}
 /* cobrar en Vender: carga la cuenta en el POS y al cobrar cierra la mesa (o marca pagado el pedido) */
 A.dpCobrar=el=>{if(!dpCan('sell'))return toast('Cobrar lo hace caja (o administración).',1);const t=el.dataset.t?dpT(el.dataset.t):null;const o=el.dataset.o?dpO(el.dataset.o):null;
  const os=t?dpSessOrders(t).filter(x=>!x.paid):o?[o]:[];if(!os.length)return toast('No hay nada para cobrar.',1);
@@ -135,7 +139,7 @@ function dpLoteLeft(){const D=G();const b=dpP('dp-bollo');let st=Math.max(0,b?st
 
 /* ---------- API para la carta pública (mismo equipo; los datos son de la demo) ---------- */
 function dpPubProd(p){const i=p.dp&&p.dp.sizes?dpP(p.id+'_i'):null;const agot=isKit(p)?kitStock(p)<=0&&!canOver(p):stockOf(p)<=0&&!canOver(p);
- return{id:p.id,cat:p.rubro,n:p.name,d:p.desc||'',price:p.price/100,ind:i?{id:i.id,price:i.price/100}:null,star:!!(p.dp&&p.dp.star),alc:!!(p.dp&&p.dp.alc),art:dpArt(p),agot};}
+ return{id:p.id,cat:p.rubro,n:p.name,d:p.desc||'',price:p.price/100,ind:i?{id:i.id,price:i.price/100}:null,half:dpHalf(p)?{price:dpHalf(p).price/100,l:dpHalf(p).l}:null,star:!!(p.dp&&p.dp.star),alc:!!(p.dp&&p.dp.alc),art:dpArt(p),agot};}
 function dpPubOrder(o){return{id:o.id,n:o.n,status:o.status,stl:DP_ST[o.status].l,step:DP_ST[o.status].step,eta:o.eta,etaAt:o.etaAt,total:dpOrderTot(o)/100,items:dpItems(o),channel:o.channel,tableId:o.tableId,log:o.log.map(l=>({s:l.s,t:l.t}))};}
 const DP_RL={};
 window.DP_API={
@@ -143,7 +147,7 @@ window.DP_API={
   table:t?{id:t.id,label:t.label,sector:t.sector,mozo:dpFirst(dpEmpN(t.mozo)),open:!!t.session,bill:!!(t.session&&t.session.bill),total:dpTableTot(t)/100}:null,
   cats:DP_CATS.filter(c=>['dp-piz','dp-ent','dp-czn','dp-pos','dp-beb'].includes(c[0])).map(c=>({id:c[0],n:c[1],s:c[3]})),
   prods:S.products.filter(p=>p.active&&p.menu&&p.dp&&!p.dp.ind).map(dpPubProd),extras:S.products.filter(p=>p.active&&p.dp&&p.dp.extra).map(p=>({id:p.id,n:p.name,price:p.price/100})),
-  cart:t?(D.carts[t.id]||[]).map(l=>({pid:l.pid,qty:l.qty,ex:l.ex,note:l.note})):null,orders:t&&t.session?dpSessOrders(t).map(dpPubOrder):[],
+  cart:t?(D.carts[t.id]||[]).map(l=>({pid:l.pid,qty:l.qty,ex:l.ex,note:l.note,h:l.h?1:0})):null,orders:t&&t.session?dpSessOrders(t).map(dpPubOrder):[],
   promo:'10 % off en tu primera visita como socio con BIENVENIDA10',club:{goal:+S.loyalty.goal||8,reward:String(S.loyalty.reward||'')}};},
  orders:ids=>{const D=G();return (ids||[]).map(id=>D.orders.find(o=>o.id===id)).filter(Boolean).map(dpPubOrder);},
  cart:(mesa,lines)=>{const t=dpT(String(mesa||'').toUpperCase());if(!t)return false;const L=dpCleanLines(lines);if(L.length)G().carts[t.id]=L;else delete G().carts[t.id];dpCommit(false);return true;},
@@ -160,4 +164,4 @@ window.DP_API={
  bill:mesa=>{const t=dpT(String(mesa||'').toUpperCase());if(!t||!t.session)return false;t.session.bill=true;dpNotify(t.label+' pidió la cuenta: '+money(dpTableTot(t))+'.',['mozo','caja','admin'],{tableId:t.id});audit('MESA_PIDE_CUENTA',t.label);dpCommit(false);return true;},
  rev:()=>(S.dp&&S.dp.rev)||0};
 function dpCleanLines(lines){return (Array.isArray(lines)?lines:[]).slice(0,30).map(l=>{const p=dpP(l&&l.pid);if(!p||!p.active||!p.dp||p.dp.extra||p.dp.ins||p.dp.bollo)return null;const q=Math.max(1,Math.min(20,parseInt(l.qty,10)||1));
- const ex=(Array.isArray(l.ex)?l.ex:[]).filter(e=>{const x=dpP(e);return x&&x.dp&&x.dp.extra&&x.active;}).slice(0,8);return{id:uid(),pid:p.id,qty:q,ex,note:String(l.note||'').replace(/[<>]/g,'').slice(0,60)};}).filter(Boolean);}
+ const ex=(Array.isArray(l.ex)?l.ex:[]).filter(e=>{const x=dpP(e);return x&&x.dp&&x.dp.extra&&x.active;}).slice(0,8);return Object.assign({id:uid(),pid:p.id,qty:q,ex,note:String(l.note||'').replace(/[<>]/g,'').slice(0,60)},l.h&&dpHalf(p)?{h:1}:{});}).filter(Boolean);}

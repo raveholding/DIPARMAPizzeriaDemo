@@ -21,7 +21,7 @@ function bizCard(){const cur=ownerMode()?'owner':'rubros';const adm=!!user&&user
  const locked=bizLocked();
  const sec1=locked?`<p><b>${typeof isSoloBuild==='function'&&isSoloBuild()?'Comercio de un solo dueño':'Un solo dueño'}</b> <span class="tag">fijo en este sistema</span></p><p class="sm mut">Todo el dinero es del dueño. Los productos se agrupan en categorías.</p>`
   :`<div class="bm-grid">${opt('biz','rubros',BIZ_TYPES.rubros,'Como Almacén RAVE: cada rubro es una persona (responsable) con su caja, sueldo del empleado a medias, impuesto que se separa y reparto de ganancia.',cur==='rubros')}${opt('biz','owner',BIZ_TYPES.owner,'El dinero es todo del dueño: no hay rubros por persona ni reparto entre socios. Los productos se agrupan en categorías. Cajas operativas + caja principal con traspasos.',cur==='owner')}</div>${adm?'<div class="row"><button class="btn gold" data-act="bizSave">Aplicar</button></div>':''}`;
- const sec2=`<div class="bm-grid">${Object.entries(CHANNELS).map(([k,[t,d]])=>opt('chan',k,t,d,ch===k)).join('')}</div>
+ const sec2=(typeof isPizzaBuild==='function'&&isPizzaBuild())?`<p><b>Sólo minorista (consumidor final)</b> <span class="tag">fijo en este sistema</span></p><p class="sm mut">Una pizzería vende al consumidor final: salón, mostrador, delivery y PedidosYa.</p>`:`<div class="bm-grid">${Object.entries(CHANNELS).map(([k,[t,d]])=>opt('chan',k,t,d,ch===k)).join('')}</div>
   ${typeof CLOUD_HOOK!=='undefined'&&CLOUD_HOOK&&ch==='min'?'<p class="sm mut">Con la nube activa, antes de vender como mayorista hay que haber corrido <b>10-mayorista-precios.sql</b> en Supabase.</p>':''}
   ${adm?'<div class="row"><button class="btn gold" data-act="chanSave">Aplicar</button></div>':''}`;
  return`<div class="card" style="margin-bottom:1rem" id="biz-card"><h3>Modelo de negocio</h3>
@@ -55,7 +55,7 @@ function ownChan(a){const o={minorista:{n:0,t:0},mayorista:{n:0,t:0}};
 function ownCats(a){return S.rubros.filter(r=>r.kind==='rubro'||r.kind==='archivado').map(r=>({name:r.name,sold:(a.rub[r.id]||{}).sold||0,profit:(a.rub[r.id]||{}).profit||0})).filter(x=>x.sold>0).sort((x,y)=>y.sold-x.sold);}
 function ownerTablesHTML(a){const ch=ownChan(a),cv=can('view_cost');const cats=ownCats(a);
  return`<h3>Ventas del turno</h3><div class="tw"><table><thead><tr><th>Canal</th><th class="r">Ventas</th><th class="r">Importe</th></tr></thead><tbody>
- ${(typeof wsOnly==='function'&&wsOnly())?'':`<tr><td>Minorista</td><td class="r">${ch.minorista.n}</td><td class="r">${money(ch.minorista.t)}</td></tr>
+ ${(typeof wsOnly==='function'&&wsOnly())||!(typeof wsOn==='function'&&wsOn())?'':`<tr><td>Minorista</td><td class="r">${ch.minorista.n}</td><td class="r">${money(ch.minorista.t)}</td></tr>
  <tr><td>Mayorista</td><td class="r">${ch.mayorista.n}</td><td class="r">${money(ch.mayorista.t)}</td></tr>`}
  <tr><td><b>Total</b></td><td class="r"><b>${a.count}</b></td><td class="r"><b>${money(a.total)}</b></td></tr></tbody></table></div>
  <h3 style="margin-top:1rem">Por medio de pago</h3><div class="tw"><table><thead><tr><th>Medio</th><th class="r">Cobros</th><th class="r">Importe</th><th class="r">Comisión</th></tr></thead><tbody>
@@ -72,7 +72,7 @@ function ownerTablesHTML(a){const ch=ownChan(a),cv=can('view_cost');const cats=o
 function buildReportOwner(a,dayKey,who,inp){const L=[];const P=(t,cls)=>L.push({t,cls:cls||''});const ch=ownChan(a);
  P(dmy(dayKey)+' '+DIAS[dowOfKey(dayKey)]+' cerró '+who,'h');P('');
  P('VENTAS TOTAL : '+money(a.total)+' ('+a.count+' venta'+(a.count===1?'':'s')+')','h');
- if(!(typeof wsOnly==='function'&&wsOnly())){P('  Minorista : '+money(ch.minorista.t)+' ('+ch.minorista.n+')');P('  Mayorista : '+money(ch.mayorista.t)+' ('+ch.mayorista.n+')');}P('');
+ if(!(typeof wsOnly==='function'&&wsOnly())&&(typeof wsOn==='function'&&wsOn())){P('  Minorista : '+money(ch.minorista.t)+' ('+ch.minorista.n+')');P('  Mayorista : '+money(ch.mayorista.t)+' ('+ch.mayorista.n+')');}P('');
  Object.keys(a.byMethod).filter(m=>m!=='fiado').forEach(m=>{const x=a.byMethod[m];P((MET[m]||m)+' '+money(x.gross)+(x.n>1?' ('+x.n+')':''));if(x.fee>0)P('  comisión - '+money(x.fee)+' · neto '+money(x.gross-x.fee));});
  P('COBRADO REAL (dinero que entró) : '+money(a.cobrado),'h');
  if(a.aCtaCte>0)P('A CUENTA CORRIENTE (deuda de clientes, NO entró a caja) : '+money(a.aCtaCte),'w');

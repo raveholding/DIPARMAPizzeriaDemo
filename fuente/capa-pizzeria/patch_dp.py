@@ -70,5 +70,57 @@ if "'pizza':('Di Parma'" not in b:
     b=b.replace("    base={'lang':'es-AR'","    _bg='#0b0a0a' if PROFILE=='pizza' else '#242220'\n    base={'lang':'es-AR'",1).replace("'background_color':'#242220','theme_color':'#242220'","'background_color':_bg,'theme_color':_bg",1)
     assert "'pizza':('Di Parma" in b and "PROFILE=='pizza':\n            im=" in b and "_bg='#0b0a0a'" in b and 'content=\"#0b0a0a\"' in b
     wr('build.py',b)
+# V27.10 · VENTA FRACCIONADA (media pizza, media docena, docena) · módulo genérico del núcleo p3s-fraccion.js
+shutil.copy(os.path.join(here,'p3s-fraccion.js'),os.path.join(D,'p3s-fraccion.js'))
+b=rd('build.py')
+if "'p3s-fraccion.js'" not in b:
+    b=b.replace("parts=[p for p in parts if os.path.exists(p)]","parts=[p for p in parts if os.path.exists(p)]\nif os.path.exists('p3s-fraccion.js') and 'p3s-fraccion.js' not in parts: parts.insert(parts.index('p3j-combos.js')+1,'p3s-fraccion.js')  # V27.10 venta fraccionada",1)
+    assert "'p3s-fraccion.js'" in b;wr('build.py',b)
+# en Vender, tocar el entero no se suma a una línea de «Media»
+rep('p3b-pos.js',"const L=pos.lines.find(l=>l.pid===p.id);if(L){L.qty+=step;","const L=pos.lines.find(l=>l.pid===p.id&&!l.frac);if(L){L.qty+=step;",'l.pid===p.id&&!l.frac')
+# stock / ficha técnica: la fracción descuenta qty × f
+rep('p3j-combos.js',"if(isKit(p))p.kit.forEach(k=>{need[k.pid]=(need[k.pid]||0)+l.qty*k.qty;});else need[l.pid]=(need[l.pid]||0)+l.qty;});",
+    "const fq=l.qty*(l.frac||1);if(isKit(p))p.kit.forEach(k=>{need[k.pid]=(need[k.pid]||0)+fq*k.qty;});else need[l.pid]=(need[l.pid]||0)+fq;});",'const fq=l.qty*(l.frac||1)')
+rep('p3b-pos.js',"cost:isKit(prod(l.pid))?kitCost(prod(l.pid)):l.cost,list:l.list,disc:alloc[i]||0,",
+    "cost:isKit(prod(l.pid))?Math.round(kitCost(prod(l.pid))*(l.frac||1)):l.cost,list:l.list,disc:alloc[i]||0,...(l.frac?{frac:l.frac,fl:l.fl||''}:{}),",'frac:l.frac,fl:l.fl')
+rep('p3-ops.js',"if(c)c.stock=Math.round((c.stock+it.qty*k.qty)*1000)/1000;});return;}\n const p=S.products.find(x=>x.id===it.pid);if(p)p.stock=Math.round((p.stock+it.qty)*1000)/1000;});}",
+    "if(c)c.stock=Math.round((c.stock+it.qty*(it.frac||1)*k.qty)*1000)/1000;});return;}\n const p=S.products.find(x=>x.id===it.pid);if(p)p.stock=Math.round((p.stock+it.qty*(it.frac||1))*1000)/1000;});}",'it.qty*(it.frac||1)*k.qty')
+rep('p3r-oper.js',"if(c)c.stock=Math.round((c.stock+o.qty*k.qty)*1000)/1000;});else{const p=prod(o.pid);if(p)p.stock=Math.round((p.stock+o.qty)*1000)/1000;}",
+    "if(c)c.stock=Math.round((c.stock+o.qty*(it.frac||1)*k.qty)*1000)/1000;});else{const p=prod(o.pid);if(p)p.stock=Math.round((p.stock+o.qty*(it.frac||1))*1000)/1000;}",'o.qty*(it.frac||1)*k.qty')
+# editor del producto: bloque «Venta fraccionada»
+rep('p3-ops.js'," ${comboBlock(p)}\n"," ${comboBlock(p)}\n ${typeof fracBlock==='function'?fracBlock(p):''}\n",'fracBlock(p)')
+rep('p3-ops.js',"  const MP=menuProdRead(w);if(MP.err)return w._err(MP.err),false;",
+    "  const MP=menuProdRead(w);if(MP.err)return w._err(MP.err),false;\n  const FR=typeof fracRead==='function'?fracRead(w):{fr:null};if(FR.err)return w._err(FR.err),false;",'const FR=typeof fracRead')
+rep('p3-ops.js',"  d.msec=MP.msec;","  if(FR.fr){if(JSON.stringify(FR.fr)!==JSON.stringify((p&&p.fr)||[]))audit('VENTA_FRACCIONADA',name+' · '+(FR.fr.map(x=>x.l+' ('+x.f+') '+money(x.price)).join(' · ')||'sin fracciones'));d.fr=FR.fr;}\n  d.msec=MP.msec;",'VENTA_FRACCIONADA')
+rep('p3-ops.js',"wsProdBind(w,cv);comboBind(w,p);","wsProdBind(w,cv);comboBind(w,p);if(typeof fracBind==='function')fracBind(w);",'fracBind(w)')
+
+# V27.10 · QUITAR LO QUE NO ES DE UNA PIZZERÍA (perfil pizza)
+PZ="(typeof isPizzaBuild==='function'&&isPizzaBuild())"
+# editor del producto: sin «Grupo / bodega» ni «PLU de balanza»; ejemplo de presentación de pizzería
+rep('p3-ops.js',' <div class="grid g3"><div><label for="pm-sub">Presentación (ej. 750 ml)</label>',
+    ' <div class="grid ${'+PZ+'?\'g2\':\'g3\'}"><div><label for="pm-sub">Presentación (ej. ${'+PZ+'?\'Grande · 8 porciones\':\'750 ml\'})</label>','Grande · 8 porciones')
+rep('p3-ops.js','<div><label for="pm-gr">Grupo / bodega (menú)</label>','<div ${'+PZ+'?\'hidden\':\'\'}><label for="pm-gr">Grupo / bodega (menú)</label>',"'hidden':''}><label for=\"pm-gr\">")
+rep('p3-ops.js','<div><label for="pm-plu">PLU de balanza (si es por peso)</label>','<div ${'+PZ+'?\'hidden\':\'\'}><label for="pm-plu">PLU de balanza (si es por peso)</label>',"'hidden':''}><label for=\"pm-plu\">")
+# sin canal mayorista activo no se muestran «Minorista / Mayorista» (caja, arqueo, clientes)
+W="(typeof wsOn==='function'&&wsOn())"
+rep('p3e-saledetail.js',' <div class="card kpi"><b>${money(T.ch.Minorista.t)}</b><span>Minorista (${T.ch.Minorista.n})</span></div><div class="card kpi"><b>${money(T.ch.Mayorista.t)}</b><span>Mayorista (${T.ch.Mayorista.n})</span></div>',
+    ' ${'+W+'?`<div class="card kpi"><b>${money(T.ch.Minorista.t)}</b><span>Minorista (${T.ch.Minorista.n})</span></div><div class="card kpi"><b>${money(T.ch.Mayorista.t)}</b><span>Mayorista (${T.ch.Mayorista.n})</span></div>`:\'\'}','?`<div class="card kpi"><b>${money(T.ch.Minorista')
+rep('p3e-saledetail.js','<div class="cjflt noprint"><div><label for="cjf-ch">Canal</label>','<div class="cjflt noprint"><div ${'+W+'?\'\':\'hidden\'}><label for="cjf-ch">Canal</label>',"?'':'hidden'}><label for=\"cjf-ch\">")
+rep('p3k-owner.js',"${(typeof wsOnly==='function'&&wsOnly())?'':`<tr><td>Minorista</td>","${(typeof wsOnly==='function'&&wsOnly())||!"+W+"?'':`<tr><td>Minorista</td>","wsOnly())||!(typeof wsOn")
+rep('p3k-owner.js'," if(!(typeof wsOnly==='function'&&wsOnly())){P('  Minorista : '"," if(!(typeof wsOnly==='function'&&wsOnly())&&"+W+"){P('  Minorista : '","wsOnly())&&(typeof wsOn")
+rep('p6-loyalty.js',"((typeof wsOnly==='function'&&wsOnly())?'Clientes activos':","((typeof wsOnly==='function'&&wsOnly())||!"+W+"?'Clientes activos':","wsOnly())||!(typeof wsOn==='function'&&wsOn())?'Clientes activos'")
+# Modelo de negocio: la pizzería vende al consumidor final (sin opciones de mayorista)
+rep('p3k-owner.js',' const sec2=`<div class="bm-grid">',' const sec2='+PZ+'?`<p><b>Sólo minorista (consumidor final)</b> <span class="tag">fijo en este sistema</span></p><p class="sm mut">Una pizzería vende al consumidor final: salón, mostrador, delivery y PedidosYa.</p>`:`<div class="bm-grid">','Sólo minorista (consumidor final)</b>')
+rep('p2c-ux.js',"'Medios de pago, recargos, fiado y mayorista',","("+PZ+"?'Medios de pago, recargos y fiado':'Medios de pago, recargos, fiado y mayorista'),",'Medios de pago, recargos y fiado')
+# Periféricos: ticket de ejemplo con pizzas y sin balanza (una pizzería no vende por peso)
+rep('p7-devices.js',"items:[{name:'Gin Beefeater + Cunnington Tónica (2.25 lt)',qty:1,price:3300000,disc:0},{name:'Pachamama',qty:2,price:700000,disc:70000}]",
+    "items:"+PZ+"?[{name:'Pizza Di Parma · Grande',qty:1,price:2290000,disc:0},{name:'Mozzarella · Media',qty:2,price:950000,disc:0},{name:'Cerveza artesanal 473 ml',qty:2,price:520000,disc:270000}]:[{name:'Gin Beefeater + Cunnington Tónica (2.25 lt)',qty:1,price:3300000,disc:0},{name:'Pachamama',qty:2,price:700000,disc:70000}]",'Mozzarella · Media')
+rep('p7-devices.js','<button class="btn" data-act="devScaleAuto">Balanza (reconoce Systel / Kretz)</button>','${'+PZ+'?\'\':\'<button class="btn" data-act="devScaleAuto">Balanza (reconoce Systel / Kretz)</button>\'}',"?'':'<button class=\"btn\" data-act=\"devScaleAuto\">")
+rep('p7-devices.js',"${IS_CLIENT?'':'<button class=\"btn\" data-act=\"devSimScale\">Balanza simulada (demo)</button>'}","${IS_CLIENT||"+PZ+"?'':'<button class=\"btn\" data-act=\"devSimScale\">Balanza simulada (demo)</button>'}","IS_CLIENT||(typeof isPizzaBuild")
+rep('p7-devices.js',' Etiquetas EAN-13 de balanza: ver «Balanza y etiquetas».</p>','${'+PZ+'?\'\':\' Etiquetas EAN-13 de balanza: ver «Balanza y etiquetas».\'}</p>',"?'':' Etiquetas EAN-13")
+rep('p7-devices.js',' ${scaleCardHtml()}',' ${'+PZ+'?\'\':scaleCardHtml()}',"?'':scaleCardHtml()}")
+rep('p2c-ux.js',"dispositivos:'Impresoras, balanzas, lectores y diseño del ticket.',","dispositivos:"+PZ+"?'Impresoras de comandas y tickets, cajón, lectores y diseño del ticket.':'Impresoras, balanzas, lectores y diseño del ticket.',",'Impresoras de comandas y tickets')
+rep('p7-devices.js','Cada impresora, balanza y lector se prueba','Cada impresora${'+PZ+'?\'\':\', balanza\'} y lector se prueba',"Cada impresora${")
+rep('p3b-pos.js','Combo: descuenta ${esc(kitTxt(q))}','Combo: descuenta ${esc(kitTxt(l.frac?{kit:q.kit.map(k=>({pid:k.pid,qty:Math.round(k.qty*l.frac*1000)/1000}))}:q))}','kitTxt(l.frac?')
 if os.path.exists(os.path.join(D,'p11d-config-ux.js')):os.remove(os.path.join(D,'p11d-config-ux.js'))
 print('capa Di Parma aplicada en',D)

@@ -13,7 +13,7 @@ function kitCost(p){return kitComps(p).reduce((a,x)=>a+Math.round((x.p.cost||0)*
 const kitTxt=p=>kitComps(p).map(x=>(x.qty!==1?numAR(x.qty,3)+' × ':'')+pfull(x.p)).join(' + ');
 /* lo que hay que descontar del stock por las líneas de una venta (los combos se abren en sus artículos) */
 function kitNeed(lines){const need={};(lines||[]).forEach(l=>{const p=prod(l.pid);
- if(isKit(p))p.kit.forEach(k=>{need[k.pid]=(need[k.pid]||0)+l.qty*k.qty;});else need[l.pid]=(need[l.pid]||0)+l.qty;});
+ const fq=l.qty*(l.frac||1);if(isKit(p))p.kit.forEach(k=>{need[k.pid]=(need[k.pid]||0)+fq*k.qty;});else need[l.pid]=(need[l.pid]||0)+fq;});
  for(const k in need)need[k]=Math.round(need[k]*1000)/1000;return need;}
 /* foto de la composición para guardar en la línea vendida */
 function kitSnap(pid){const p=prod(pid);if(!isKit(p))return null;return kitComps(p).map(x=>({pid:x.pid,name:pfull(x.p),qty:x.qty}));}

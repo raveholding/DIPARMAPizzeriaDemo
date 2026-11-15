@@ -98,8 +98,8 @@ async function copyText(t){try{await navigator.clipboard.writeText(t);toast('Cop
 /* ===== Eventos asíncronos (cola) y webhooks simulados ===== */
 function emit(type,data){S.events.push({id:uid(),ts:now(),type,status:'nuevo',data:data||{}});if(S.events.length>300)S.events.splice(0,S.events.length-300);save();setTimeout(processQueue,1200);}
 function processQueue(){if(S.simOffline)return 0;let n=0;S.events.forEach(e=>{if(e.status==='nuevo'){e.status='procesado';e.processedAt=now();n++;}});if(n)save();return n;}
-function restock(s){s.items.forEach(it=>{if(Array.isArray(it.kit)&&it.kit.length){it.kit.forEach(k=>{const c=S.products.find(x=>x.id===k.pid);if(c)c.stock=Math.round((c.stock+it.qty*k.qty)*1000)/1000;});return;}
- const p=S.products.find(x=>x.id===it.pid);if(p)p.stock=Math.round((p.stock+it.qty)*1000)/1000;});}
+function restock(s){s.items.forEach(it=>{if(Array.isArray(it.kit)&&it.kit.length){it.kit.forEach(k=>{const c=S.products.find(x=>x.id===k.pid);if(c)c.stock=Math.round((c.stock+it.qty*(it.frac||1)*k.qty)*1000)/1000;});return;}
+ const p=S.products.find(x=>x.id===it.pid);if(p)p.stock=Math.round((p.stock+it.qty*(it.frac||1))*1000)/1000;});}
 function webhook(saleId,evId,res){
  if(S.seenEvents[evId]){emit('webhook.duplicado',{ev:evId});return'dup';}
  if(S.simOffline)return'offline';
@@ -217,7 +217,8 @@ A.pedit=el=>{const p=S.products.find(x=>x.id===el.dataset.id)||null;const cv=can
  <div class="grid g2"><div><label for="pm-st">Stock (<span id="pm-ul">und</span>)</label><input id="pm-st" inputmode="decimal" placeholder="0" value="${p?esc(String(p.stock).replace('.',',')):''}" autocomplete="off"></div><div><label for="pm-b">Código de barras</label><input id="pm-b" value="${esc(p?p.barcode:'')}"></div></div>
  ${wsProdBlock(p)}
  ${comboBlock(p)}
- <div class="grid g3"><div><label for="pm-sub">Presentación (ej. 750 ml)</label><input id="pm-sub" maxlength="40" value="${esc(p&&p.sub?p.sub:'')}"></div><div><label for="pm-gr">Grupo / bodega (menú)</label><input id="pm-gr" maxlength="40" value="${esc(p&&p.grupo?p.grupo:'')}"></div><div><label for="pm-plu">PLU de balanza (si es por peso)</label><input id="pm-plu" inputmode="numeric" maxlength="5" value="${esc(p&&p.plu?p.plu:'')}"></div></div>
+ ${typeof fracBlock==='function'?fracBlock(p):''}
+ <div class="grid ${(typeof isPizzaBuild==='function'&&isPizzaBuild())?'g2':'g3'}"><div><label for="pm-sub">Presentación (ej. ${(typeof isPizzaBuild==='function'&&isPizzaBuild())?'Grande · 8 porciones':'750 ml'})</label><input id="pm-sub" maxlength="40" value="${esc(p&&p.sub?p.sub:'')}"></div><div ${(typeof isPizzaBuild==='function'&&isPizzaBuild())?'hidden':''}><label for="pm-gr">Grupo / bodega (menú)</label><input id="pm-gr" maxlength="40" value="${esc(p&&p.grupo?p.grupo:'')}"></div><div ${(typeof isPizzaBuild==='function'&&isPizzaBuild())?'hidden':''}><label for="pm-plu">PLU de balanza (si es por peso)</label><input id="pm-plu" inputmode="numeric" maxlength="5" value="${esc(p&&p.plu?p.plu:'')}"></div></div>
  <label for="pm-d">Descripción (menú)</label><input id="pm-d" value="${esc(p?p.desc:'')}" maxlength="120"><label for="pm-e">Nombre en inglés (opcional)</label><input id="pm-e" value="${esc(p&&p.en?p.en:'')}" maxlength="80">
  ${menuProdBlock(p)}
  <label class="chk"><input type="checkbox" id="pm-m" ${p&&p.menu?'checked':''}> Publicar en menú digital</label><label class="chk"><input type="checkbox" id="pm-a" ${!p||p.active?'checked':''}> Activo</label><label class="chk"><input type="checkbox" id="pm-ns" ${p&&p.needStock?'checked':''}> Exigir stock (no permitir vender sin stock este producto)</label>${p&&canDelItems()?`<div class="row" style="margin-top:.9rem;padding-top:.7rem;border-top:1px solid var(--line);flex-wrap:wrap;align-items:center;gap:.6rem"><button type="button" class="btn sm danger" id="pm-del" style="min-height:44px">Eliminar este artículo</button><span class="sm mut">Sólo administrador. Si tiene ventas o movimientos se archiva (no se pierde el historial).</span></div>`:''}`,
@@ -228,11 +229,13 @@ A.pedit=el=>{const p=S.products.find(x=>x.id===el.dataset.id)||null;const cv=can
   const W=wsProdRead(p,pr,bc,cost);if(W&&W.err)return w._err(W.err),false;
   const K=comboRead(w,p);if(K.err)return w._err(K.err),false;
   const MP=menuProdRead(w);if(MP.err)return w._err(MP.err),false;
+  const FR=typeof fracRead==='function'?fracRead(w):{fr:null};if(FR.err)return w._err(FR.err),false;
   const d={name,sub:val('pm-sub').trim(),grupo:val('pm-gr').trim(),plu,rubro,unit:val('pm-u'),price:pr,cost,stock:st,barcode:bc,desc:val('pm-d').trim(),en:val('pm-e').trim(),menu:$('#pm-m',w).checked,active:$('#pm-a',w).checked,needStock:$('#pm-ns',w).checked};
   if(W){if(JSON.stringify(W.pres)!==JSON.stringify((p&&p.pres)||[])||W.floor!==((p&&p.floor)||0))audit('PRESENTACIONES_PRODUCTO',name+' · '+(W.pres.map(k=>wsLvName(k.lv)+' ×'+k.qty+' '+money(k.unit)+'/u').join(' · ')||'sin presentaciones')+(W.floor?' · piso '+money(W.floor):''));d.pres=W.pres;d.floor=W.floor;if(W.warns.length)setTimeout(()=>toast('Ojo: '+W.warns.join('; ')+'.',1),400);}
   if(K.kit){d.kit=K.kit;d.unit='u';d.stock=p?p.stock:0;if(cv&&!(cost>0))d.cost=kitCost({kit:K.kit});}else if(p&&isKit(p)){d.kit=[];}
   if(K.kit&&JSON.stringify(K.kit)!==JSON.stringify((p&&p.kit)||[]))audit('COMBO_COMPOSICION',name+' = '+kitTxt({kit:K.kit}));else if(!K.kit&&p&&isKit(p))audit('COMBO_QUITADO',name);
   if(p&&p.stock!==d.stock)d.hist=true;
+  if(FR.fr){if(JSON.stringify(FR.fr)!==JSON.stringify((p&&p.fr)||[]))audit('VENTA_FRACCIONADA',name+' · '+(FR.fr.map(x=>x.l+' ('+x.f+') '+money(x.price)).join(' · ')||'sin fracciones'));d.fr=FR.fr;}
   d.msec=MP.msec;if(MP.img!==undefined){d.img=MP.img;d.imgOff=MP.imgOff;audit('FOTO_PRODUCTO',name+' · '+(MP.img?'foto nueva':'foto quitada'));}
   if(p){if(p.price!==pr||p.cost!==cost)audit('PRECIO_PRODUCTO',p.name+': precio '+money(p.price)+' → '+money(pr)+(p.cost!==cost?' · costo '+money(p.cost)+' → '+money(cost):''));Object.assign(p,d);audit('EDITAR_PRODUCTO',name);}
   else{S.products.push(Object.assign({id:uid()},d));audit('ALTA_PRODUCTO',name+' · '+rubName(rubro));}save();rerender();toast('Producto guardado');if(after)setTimeout(()=>after(S.products[S.products.length-1]),0);}});
@@ -240,7 +243,7 @@ A.pedit=el=>{const p=S.products.find(x=>x.id===el.dataset.id)||null;const cv=can
  const upd=()=>{const ul=$('#pm-ul',w);if(ul)ul.textContent=unitLbl(val('pm-u'));if(!cv)return;const c=cents(val('pm-c')),pc=parseNum(val('pm-p')),sg=sugPrice(c,val('pm-t'),pc);const s=$('#pm-s',w);
   if(val('pm-p')==='')s.textContent='Ingresá costo y porcentaje para ver el precio sugerido.';else if(isNaN(sg))s.textContent=val('pm-t')==='margen'?'El margen debe estar entre 0 y menos de 100 %.':'Porcentaje o costo inválido.';else s.innerHTML='Precio sugerido: <b>'+money(sg)+'</b> <button class="btn sm" type="button" id="pm-use">Usar sugerido</button>';
   const f=cents(val('pm-f'));const x=$('#pm-x',w);if(!isNaN(f)&&!isNaN(c)&&c>0){x.textContent='Con ese precio: recargo '+numAR((f-c)/c*100,1)+' % · margen bruto '+numAR((f-c)/f*100,1)+' %';}else x.textContent='';};
- wsProdBind(w,cv);comboBind(w,p);menuProdBind(w,p);w.addEventListener('input',upd);w.addEventListener('change',upd);w.addEventListener('click',e=>{if(e.target.id==='pm-use'){const sg=sugPrice(cents(val('pm-c')),val('pm-t'),parseNum(val('pm-p')));if(!isNaN(sg)){$('#pm-f',w).value=pesosStr(sg);upd();}}});upd();};
+ wsProdBind(w,cv);comboBind(w,p);if(typeof fracBind==='function')fracBind(w);menuProdBind(w,p);w.addEventListener('input',upd);w.addEventListener('change',upd);w.addEventListener('click',e=>{if(e.target.id==='pm-use'){const sg=sugPrice(cents(val('pm-c')),val('pm-t'),parseNum(val('pm-p')));if(!isNaN(sg)){$('#pm-f',w).value=pesosStr(sg);upd();}}});upd();};
 /* ===== V26 · 4.16 Eliminación protegida de artículos (sólo Administrador) =====
    · Borrado físico SOLO si no hay ventas, movimientos ni otras referencias; con historial se ARCHIVA (borrado lógico).
    · El servidor vuelve a validar todo (06-v26.sql): ocultar el botón no es seguridad.

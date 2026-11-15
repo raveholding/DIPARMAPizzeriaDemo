@@ -69,7 +69,7 @@ function devCommit(s,lines,refund,motivo){const e=devAllowed(s);if(e)return{err:
  if(refund==='efectivo'){if(!openSess())return{err:'Abrí la caja para devolver efectivo.'};const byR={};out.forEach(o=>{byR[o.rubro]=(byR[o.rubro]||0)+o.amount;});
   for(const rid in byR){const ve=validRubro(rid,'egreso');if(ve)return{err:'Rubro de «'+rubName(rid)+'»: '+ve};}
   for(const rid in byR){addMov('egreso',rid,'Devolución venta '+s.n+' · '+String(motivo).trim().slice(0,60),byR[rid]);}}
- out.forEach(o=>{const it=s.items[o.i];if(Array.isArray(it.kit)&&it.kit.length)it.kit.forEach(k=>{const c=prod(k.pid);if(c)c.stock=Math.round((c.stock+o.qty*k.qty)*1000)/1000;});else{const p=prod(o.pid);if(p)p.stock=Math.round((p.stock+o.qty)*1000)/1000;}});
+ out.forEach(o=>{const it=s.items[o.i];if(Array.isArray(it.kit)&&it.kit.length)it.kit.forEach(k=>{const c=prod(k.pid);if(c)c.stock=Math.round((c.stock+o.qty*(it.frac||1)*k.qty)*1000)/1000;});else{const p=prod(o.pid);if(p)p.stock=Math.round((p.stock+o.qty*(it.frac||1))*1000)/1000;}});
  const r={id:uid(),sale:s.id,saleN:s.n,cust:s.cust||'',ts:now(),lines:out,total,refund,motivo:String(motivo).trim().slice(0,120),user:user?user.name:'sistema',sessId:openSess()?openSess().id:''};rets().push(r);
  if(refund==='monedero')walPush(cust.id,'devolucion',total,'Devolución venta '+s.n,{sale:s.id,ret:r.id});
  audit('DEVOLUCION_PARCIAL',s.n+' · '+out.map(o=>o.name+' ×'+numAR(o.qty,3)).join(', ')+' · '+money(total)+' · reintegro '+({efectivo:'efectivo',monedero:'monedero',otro:'mismo medio (fuera del sistema)'}[refund]||refund)+' · '+r.motivo);save();return{r};}
